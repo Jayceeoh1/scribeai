@@ -36,18 +36,18 @@ async function getTranscriptDirect(videoId: string) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession()
-    if (!session?.user?.id) return NextResponse.json({ error: 'Neautentificat' }, { status: 401 })
-
-    const plan = session.user.plan
-    const isPro = plan === 'PRO' || plan === 'ENTERPRISE'
-
-    // Verificare limită Free
-    if (!isPro) {
-      const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { videosUsed: true } })
-      if (user && user.videosUsed >= 3) {
-        return NextResponse.json({
-          error: 'Ai atins limita de 3 video-uri gratuite pe lună. Upgradează la Pro pentru video-uri nelimitate.'
-        }, { status: 403 })
+    
+    // Verificare limită Free server-side
+    if (session?.user?.id) {
+      const plan = (session.user as any).plan || 'FREE'
+      const isPro = plan === 'PRO' || plan === 'ENTERPRISE'
+      if (!isPro) {
+        const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { videosUsed: true } })
+        if (user && user.videosUsed >= 3) {
+          return NextResponse.json({
+            error: 'Ai atins limita de 3 video-uri gratuite pe lună. Upgradează la Pro pentru video-uri nelimitate.'
+          }, { status: 403 })
+        }
       }
     }
 
