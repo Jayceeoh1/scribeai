@@ -201,12 +201,39 @@ export default function Tool({ session }: { session: any }) {
       })
       if (!res.ok || !res.body) { setGenOutput('Eroare la generare.'); setGenLoading(false); return }
       const reader = res.body.getReader(); const decoder = new TextDecoder()
+      let fullOutput = ''
       while (true) {
         const { done, value } = await reader.read(); if (done) break
-        setGenOutput(prev => prev + decoder.decode(value, { stream:true }))
+        const chunk = decoder.decode(value, { stream:true })
+        fullOutput += chunk
+        setGenOutput(prev => prev + chunk)
       }
+      // Salvăm scriptul generat în history
+      await saveGeneratedScript(fullOutput)
     } catch(e) { setGenOutput(`Eroare: ${e}`) }
     setGenLoading(false)
+  }
+
+  async function saveGeneratedScript(output: string) {
+    if (!output || !genTitle) return
+    try {
+      await fetch('/api/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoUrl: `generated:${genTitle}`,
+          videoTitle: genTitle,
+          videoChannel: `Keywords: ${genKeywords}`,
+          videoDuration: `${genDuration} minute`,
+          sourceLang: 'generated',
+          targetLang: genLanguage,
+          mode: 'generate',
+          scriptText: output,
+          aiProvider: 'claude',
+          aiModel: 'claude-sonnet-4-6',
+        }),
+      })
+    } catch(e) { console.error('Eroare salvare:', e) }
   }
 
   function copyGen(text: string, key: string) {

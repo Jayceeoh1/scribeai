@@ -31,9 +31,9 @@ export default function HistoryPage() {
     return matchSearch && matchFilter
   })
 
-  const modeIcon: Record<string,string> = { extract:'▶', translate:'✦', trello:'⬡', download:'↓' }
-  const modeColor: Record<string,string> = { extract:'var(--teal)', translate:'var(--violet)', trello:'#38BDF8', download:'#F472B6' }
-  const modeLabel: Record<string,string> = { extract:'Transcript', translate:'Tradus', trello:'Trello', download:'Download' }
+  const modeIcon: Record<string,string> = { extract:'▶', translate:'✦', trello:'⬡', download:'↓', generate:'✦' }
+  const modeColor: Record<string,string> = { extract:'var(--teal)', translate:'var(--violet)', trello:'#38BDF8', download:'#F472B6', generate:'var(--gold)' }
+  const modeLabel: Record<string,string> = { extract:'Transcript', translate:'Tradus', trello:'Trello', download:'Download', generate:'Script AI' }
 
   return (
     <div style={{ minHeight:'100vh', background:'var(--bg)', color:'var(--text)', fontFamily:'Inter,sans-serif', position:'relative' }}>
@@ -75,7 +75,7 @@ export default function HistoryPage() {
             />
           </div>
           <div style={{ display:'flex', gap:'6px' }}>
-            {['all','extract','translate','trello','download'].map(f => (
+            {['all','extract','translate','trello','download','generate'].map(f => (
               <button key={f} onClick={()=>setFilter(f)}
                 style={{ padding:'8px 14px', borderRadius:'8px', fontSize:'12px', fontWeight:600, cursor:'pointer', fontFamily:'Inter,sans-serif',
                   background: filter===f ? 'rgba(139,92,246,.15)' : 'var(--surface)',
