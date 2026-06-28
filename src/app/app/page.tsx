@@ -35,6 +35,7 @@ export default function AppPage() {
             {plan==='FREE' && (
               <button onClick={()=>router.push('/pricing')} style={{ padding:'6px 14px', borderRadius:'7px', background:'linear-gradient(135deg,#7C3AED,#6366F1)', color:'white', border:'none', cursor:'pointer', fontSize:'12px', fontWeight:700, fontFamily:'Inter,sans-serif' }}>⚡ Upgrade</button>
             )}
+            <button onClick={()=>router.push('/script-generator')} style={{ padding:'6px 13px', borderRadius:'7px', background:'var(--goldbg)', border:'1px solid var(--goldbdr)', color:'var(--gold)', cursor:'pointer', fontSize:'12px', fontFamily:'Inter,sans-serif', fontWeight:600 }}>✦ Script AI</button>
             <button onClick={()=>router.push('/dashboard')} style={{ padding:'6px 13px', borderRadius:'7px', background:'rgba(255,255,255,.05)', border:'1px solid rgba(255,255,255,.08)', color:'rgba(255,255,255,.5)', cursor:'pointer', fontSize:'12px', fontFamily:'Inter,sans-serif' }}>Dashboard</button>
             <button onClick={()=>router.push('/settings')} style={{ padding:'6px 13px', borderRadius:'7px', background:'rgba(255,255,255,.05)', border:'1px solid rgba(255,255,255,.08)', color:'rgba(255,255,255,.5)', cursor:'pointer', fontSize:'12px', fontFamily:'Inter,sans-serif' }}>Setări</button>
             <div style={{ width:'1px', height:'18px', background:'rgba(255,255,255,.08)' }}/>
