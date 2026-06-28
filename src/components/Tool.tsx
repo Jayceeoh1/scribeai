@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 
-type Mode = 'extract' | 'translate' | 'trello' | 'download'
+type Mode = 'extract' | 'translate' | 'trello' | 'download' | 'generate'
 type Step = 'idle' | 'fetching' | 'translating' | 'uploading' | 'downloading' | 'done' | 'error'
 
 const LANGUAGES = [
@@ -49,6 +49,7 @@ const MODES = [
   {key:'translate'as Mode, icon:'✦', label:'Traduce',    badge:'FREE', bcolor:'var(--teal)',   bbg:'var(--tealbg)',   bbdr:'var(--tealbdr)'},
   {key:'trello'   as Mode, icon:'⬡', label:'Trello',     badge:'PRO',  bcolor:'var(--gold)',   bbg:'var(--goldbg)',   bbdr:'var(--goldbdr)'},
   {key:'download' as Mode, icon:'↓', label:'Download',   badge:'PRO',  bcolor:'var(--gold)',   bbg:'var(--goldbg)',   bbdr:'var(--goldbdr)'},
+  {key:'generate' as Mode, icon:'✦', label:'Script AI',  badge:'PRO',  bcolor:'#F0C444',       bbg:'var(--goldbg)',   bbdr:'var(--goldbdr)'},
 ]
 
 function Spin() {
@@ -88,6 +89,16 @@ export default function Tool({ session }: { session: any }) {
   const [history, setHistory]     = useState<any[]>([])
   const [videoInfo, setVideoInfo] = useState<{title:string,channel:string,thumbnail:string,thumbnailMq:string,duration:string}|null>(null)
   const [exportLoading, setExportLoading] = useState<string|null>(null)
+  // Script Generator states
+  const [genTitle, setGenTitle]       = useState('')
+  const [genKeywords, setGenKeywords] = useState('')
+  const [genLanguage, setGenLanguage] = useState('Română')
+  const [genDuration, setGenDuration] = useState(5)
+  const [genStyle, setGenStyle]       = useState('educational')
+  const [genNiche, setGenNiche]       = useState('')
+  const [genLoading, setGenLoading]   = useState(false)
+  const [genOutput, setGenOutput]     = useState('')
+  const [genCopied, setGenCopied]     = useState('')
   const previewRef = useRef<HTMLDivElement>(null)
   const langRef    = useRef<HTMLDivElement>(null)
 
@@ -161,12 +172,47 @@ export default function Tool({ session }: { session: any }) {
   const curMode = MODES.find(m=>m.key===mode)!
   const isLoading = ['fetching','translating','uploading','downloading'].includes(step)
   const needsLang = mode==='translate'||mode==='trello'
-  const stepsFor = mode==='extract'?['fetching','done']:mode==='translate'?['fetching','translating','done']:mode==='trello'?['fetching','translating','uploading','done']:['downloading','done']
+  const isGenerate = mode==='generate'
+  const stepsFor = mode==='extract'?['fetching','done']:mode==='translate'?['fetching','translating','done']:mode==='trello'?['fetching','translating','uploading','done']:mode==='generate'?['done']:['downloading','done']
   const allKeys  = ['fetching','translating','uploading','downloading','done']
   const stepIdx  = allKeys.indexOf(step)
   const stepLbl: Record<string,string> = {fetching:'Transcript',translating:'Traducere',uploading:'Trello',downloading:'Descărcare',done:'Gata'}
 
   const isPro = plan === 'PRO' || plan === 'ENTERPRISE'
+
+  const GEN_STYLES = [
+    { key:'educational', label:'📚 Educativ' },
+    { key:'entertaining', label:'🎭 Distractiv' },
+    { key:'motivational', label:'💪 Motivațional' },
+    { key:'documentary', label:'🎬 Documentar' },
+    { key:'tutorial', label:'🛠️ Tutorial' },
+    { key:'vlog', label:'📱 Vlog' },
+  ]
+  const GEN_DURATIONS = [1,3,5,7,10,15,20,25]
+  const GEN_NICHES = ['Tech & AI','Business','Health','Education','Entertainment','Travel','Food','Gaming','Music','Marketing']
+
+  async function generateScript() {
+    if (!genTitle || !genKeywords || !isPro) return
+    setGenLoading(true); setGenOutput('')
+    try {
+      const res = await fetch('/api/generate-script', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ title:genTitle, keywords:genKeywords, language:genLanguage, duration:genDuration, style:genStyle, niche:genNiche }),
+      })
+      if (!res.ok || !res.body) { setGenOutput('Eroare la generare.'); setGenLoading(false); return }
+      const reader = res.body.getReader(); const decoder = new TextDecoder()
+      while (true) {
+        const { done, value } = await reader.read(); if (done) break
+        setGenOutput(prev => prev + decoder.decode(value, { stream:true }))
+      }
+    } catch(e) { setGenOutput(`Eroare: ${e}`) }
+    setGenLoading(false)
+  }
+
+  function copyGen(text: string, key: string) {
+    navigator.clipboard.writeText(text); setGenCopied(key)
+    setTimeout(()=>setGenCopied(''), 2000)
+  }
   const videosUsed = (session?.user as any)?.videosUsed || 0
 
   async function handleSubmit(e: React.FormEvent) {
@@ -287,7 +333,94 @@ export default function Tool({ session }: { session: any }) {
         <div style={{background:'var(--bg2)',border:'1px solid rgba(139,92,246,0.15)',borderRadius:'18px',padding:'24px',position:'relative',overflow:'hidden'}}>
           <div style={{position:'absolute',top:0,left:0,right:0,height:'1px',background:'linear-gradient(90deg,transparent,rgba(139,92,246,0.4),rgba(240,196,68,0.3),transparent)'}}/>
 
-          <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:'16px'}}>
+          {/* Generate Script Mode */}
+          {isGenerate && (
+            <div style={{display:'flex',flexDirection:'column',gap:'14px'}}>
+              {!isPro ? (
+                <div style={{textAlign:'center',padding:'32px 20px',background:'var(--goldbg)',border:'1px solid var(--goldbdr)',borderRadius:'14px'}}>
+                  <div style={{fontSize:'32px',marginBottom:'10px'}}>✦</div>
+                  <p style={{fontWeight:700,color:'var(--gold)',marginBottom:'6px'}}>Feature exclusiv Pro</p>
+                  <p style={{fontSize:'13px',color:'var(--text2)',marginBottom:'16px'}}>Generează scripturi complete cu AI pentru orice subiect.</p>
+                  <a href="/pricing" style={{display:'inline-block',padding:'10px 24px',borderRadius:'9px',background:'linear-gradient(135deg,var(--gold),var(--gold2))',color:'#0A0800',fontWeight:700,textDecoration:'none',fontSize:'13px'}}>⚡ Upgrade la Pro</a>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'7px'}}>Subiect / Titlu *</label>
+                    <input value={genTitle} onChange={e=>setGenTitle(e.target.value)} placeholder="Ex: Cum să faci bani online în 2026"
+                      style={{...inp}} onFocus={e=>{e.target.style.borderColor='var(--goldbdr)'}} onBlur={e=>{e.target.style.borderColor='rgba(255,255,255,.09)'}}/>
+                  </div>
+                  <div>
+                    <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'7px'}}>Keywords *</label>
+                    <input value={genKeywords} onChange={e=>setGenKeywords(e.target.value)} placeholder="Ex: bani online, freelancing, venituri pasive"
+                      style={{...inp}} onFocus={e=>{e.target.style.borderColor='var(--goldbdr)'}} onBlur={e=>{e.target.style.borderColor='rgba(255,255,255,.09)'}}/>
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
+                    <div>
+                      <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'7px'}}>Limbă</label>
+                      <select value={genLanguage} onChange={e=>setGenLanguage(e.target.value)} style={{...inp,cursor:'pointer'}}>
+                        {['Română','English','Français','Español','Deutsch','Italiano','Português','Русский','中文','日本語'].map(l=><option key={l}>{l}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'7px'}}>Durată: <span style={{color:'var(--gold)',fontWeight:700}}>{genDuration}m</span></label>
+                      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'4px'}}>
+                        {GEN_DURATIONS.map(d=>(
+                          <button key={d} type="button" onClick={()=>setGenDuration(d)}
+                            style={{padding:'7px 4px',borderRadius:'7px',fontSize:'11px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',
+                              background:genDuration===d?'var(--goldbg)':'var(--surface)',
+                              border:`1px solid ${genDuration===d?'var(--goldbdr)':'var(--border)'}`,
+                              color:genDuration===d?'var(--gold)':'var(--text3)'}}>
+                            {d}m
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'7px'}}>Stil</label>
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'5px'}}>
+                      {GEN_STYLES.map(s=>(
+                        <button key={s.key} type="button" onClick={()=>setGenStyle(s.key)}
+                          style={{padding:'7px 6px',borderRadius:'8px',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',
+                            background:genStyle===s.key?'var(--goldbg)':'var(--surface)',
+                            border:`1px solid ${genStyle===s.key?'var(--goldbdr)':'var(--border)'}`,
+                            color:genStyle===s.key?'var(--gold)':'var(--text3)'}}>
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'7px'}}>Nișă</label>
+                    <div style={{display:'flex',gap:'4px',flexWrap:'wrap'}}>
+                      {GEN_NICHES.map(n=>(
+                        <button key={n} type="button" onClick={()=>setGenNiche(genNiche===n?'':n)}
+                          style={{padding:'4px 9px',borderRadius:'6px',fontSize:'11px',fontWeight:500,cursor:'pointer',fontFamily:'Inter,sans-serif',
+                            background:genNiche===n?'var(--goldbg)':'var(--surface)',
+                            border:`1px solid ${genNiche===n?'var(--goldbdr)':'var(--border)'}`,
+                            color:genNiche===n?'var(--gold)':'var(--text3)'}}>
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <button type="button" onClick={generateScript} disabled={genLoading||!genTitle||!genKeywords}
+                    style={{width:'100%',padding:'14px',borderRadius:'11px',border:'none',
+                      cursor:genLoading||!genTitle||!genKeywords?'not-allowed':'pointer',
+                      background:genLoading||!genTitle||!genKeywords?'var(--goldbg)':'linear-gradient(135deg,var(--gold),var(--gold2))',
+                      color:genLoading||!genTitle||!genKeywords?'var(--text3)':'#0A0800',
+                      fontSize:'15px',fontWeight:700,fontFamily:'Inter,sans-serif',
+                      display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
+                    {genLoading?<><svg className="spin" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="rgba(0,0,0,.2)" strokeWidth="3"/><path d="M12 2a10 10 0 0 1 10 10" stroke="#0A0800" strokeWidth="3" strokeLinecap="round"/></svg>Generez scriptul...</>:'✦ Generează script complet'}
+                  </button>
+                  {genLoading && <p style={{textAlign:'center',fontSize:'12px',color:'var(--text3)'}}>Claude AI scrie scriptul tău... ~30-60 secunde</p>}
+                </>
+              )}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} style={{display: isGenerate ? 'none' : 'flex',flexDirection:'column',gap:'16px'}}>
 
             {/* URL */}
             <div>
@@ -547,6 +680,47 @@ export default function Tool({ session }: { session: any }) {
             <button onClick={reset} style={{padding:'8px 16px',borderRadius:'8px',fontSize:'13px',fontWeight:500,background:'var(--surface)',border:'1px solid var(--border)',color:'var(--text3)',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>Descarcă alt video</button>
           </div>
         )}
+        {/* Generate output */}
+        {isGenerate && genOutput && (
+          <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
+            {[
+              {key:'TITLURI', label:'🏆 Titluri YouTube', color:'var(--gold)', bg:'var(--goldbg)', border:'var(--goldbdr)'},
+              {key:'HOOK', label:'⚡ Hook (30 secunde)', color:'#F87171', bg:'rgba(248,113,113,.06)', border:'rgba(248,113,113,.2)'},
+              {key:'SCRIPT', label:'📝 Script Complet', color:'var(--violet)', bg:'rgba(139,92,246,.06)', border:'rgba(139,92,246,.2)'},
+              {key:'DESCRIERE', label:'📋 Descriere YouTube', color:'var(--teal)', bg:'var(--tealbg)', border:'var(--tealbdr)'},
+              {key:'EDITARE', label:'🎬 Sugestii Editare', color:'#F472B6', bg:'rgba(244,114,182,.06)', border:'rgba(244,114,182,.2)'},
+              {key:'TOP_TITLURI', label:'🥇 Top 3 Titluri Finale', color:'var(--text)', bg:'var(--bg2)', border:'rgba(139,92,246,.25)'},
+            ].map(sec => {
+              const text = genOutput.match(new RegExp(`---${sec.key}---\n([\s\S]*?)(?=---[A-Z_]+---|$)`))?.[1]?.trim()
+              if (!text) return null
+              return (
+                <div key={sec.key} style={{background:sec.bg,border:`1px solid ${sec.border}`,borderRadius:'12px',overflow:'hidden'}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',borderBottom:`1px solid ${sec.border}`}}>
+                    <span style={{fontSize:'12px',fontWeight:700,color:sec.color}}>{sec.label}</span>
+                    <button onClick={()=>copyGen(text,sec.key)}
+                      style={{padding:'3px 9px',borderRadius:'5px',fontSize:'11px',background:'rgba(255,255,255,.05)',border:`1px solid ${sec.border}`,color:sec.color,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+                      {genCopied===sec.key?'✓ Copiat':'⎘ Copiază'}
+                    </button>
+                  </div>
+                  <div style={{padding:'12px 14px',fontSize:'13px',lineHeight:1.8,color:'var(--text2)',whiteSpace:'pre-wrap',wordBreak:'break-word',maxHeight:sec.key==='SCRIPT'?'400px':'none',overflowY:sec.key==='SCRIPT'?'auto':'visible'}}>
+                    {text}
+                  </div>
+                </div>
+              )
+            })}
+            <div style={{display:'flex',gap:'8px'}}>
+              <button onClick={()=>copyGen(genOutput,'all')}
+                style={{padding:'8px 14px',borderRadius:'8px',fontSize:'12px',fontWeight:600,background:'var(--surface)',border:'1px solid var(--border)',color:'var(--text3)',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+                {genCopied==='all'?'✓ Copiat tot':'⎘ Copiază tot'}
+              </button>
+              <button onClick={()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([genOutput],{type:'text/plain'}));a.download=`${genTitle||'script'}.txt`;a.click()}}
+                style={{padding:'8px 14px',borderRadius:'8px',fontSize:'12px',fontWeight:600,background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.25)',color:'var(--violet)',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+                ↓ Descarcă .txt
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Success: Extract/Translate */}
         {step==='done'&&!cardUrl&&preview&&mode!=='download'&&(
           <div style={{padding:'12px 16px',background:'rgba(52,211,153,0.07)',border:'1px solid rgba(52,211,153,0.2)',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'8px'}}>
