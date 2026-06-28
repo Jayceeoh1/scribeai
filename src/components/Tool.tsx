@@ -77,6 +77,8 @@ export default function Tool({ session }: { session: any }) {
   const [dlTotal, setDlTotal]     = useState(0)
   const [dlProgress, setDlProgress] = useState('')
   const [history, setHistory]     = useState<any[]>([])
+  const [videoInfo, setVideoInfo] = useState<{title:string,channel:string,thumbnail:string,thumbnailMq:string,duration:string}|null>(null)
+  const [exportLoading, setExportLoading] = useState<string|null>(null)
   const previewRef = useRef<HTMLDivElement>(null)
   const langRef    = useRef<HTMLDivElement>(null)
 
@@ -93,9 +95,17 @@ export default function Tool({ session }: { session: any }) {
     const id = extractYtId(url)
     if (id) {
       setVideoThumb(`https://img.youtube.com/vi/${id}/mqdefault.jpg`)
-      fetch(`https://www.youtube.com/oembed?url=https://youtu.be/${id}&format=json`)
-        .then(r=>r.json()).then(d=>setVideoTitle(d.title||'')).catch(()=>{})
-    } else { setVideoThumb(''); setVideoTitle('') }
+      setVideoInfo(null)
+      fetch(`/api/video-info?videoId=${id}`)
+        .then(r=>r.json())
+        .then(d=>{
+          if(!d.error){
+            setVideoInfo(d)
+            setVideoTitle(d.title||'')
+            setVideoThumb(d.thumbnailMq||`https://img.youtube.com/vi/${id}/mqdefault.jpg`)
+          }
+        }).catch(()=>{})
+    } else { setVideoThumb(''); setVideoTitle(''); setVideoInfo(null) }
   }, [url])
 
   useEffect(() => { if(previewRef.current) previewRef.current.scrollTop=previewRef.current.scrollHeight }, [preview])
@@ -108,6 +118,35 @@ export default function Tool({ session }: { session: any }) {
   function reset() {
     setStep('idle');setPreview('');setCardUrl('');setError('');setDetectedLang('');
     setCopied(false);setDlBytes(0);setDlTotal(0);setDlProgress('')
+  }
+
+  async function downloadExport(format: 'md' | 'docx' | 'txt') {
+    if (!preview) return
+    setExportLoading(format)
+    try {
+      if (format === 'txt') {
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(new Blob([preview], { type: 'text/plain' }))
+        a.download = `${videoTitle || 'script'}.txt`
+        a.click()
+        setExportLoading(null)
+        return
+      }
+      const res = await fetch('/api/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: preview, title: videoTitle || 'script', format }),
+      })
+      const blob = await res.blob()
+      const cd = res.headers.get('Content-Disposition') ?? ''
+      const nm = cd.match(/filename="(.+?)"/)
+      const fileName = nm ? decodeURIComponent(nm[1]) : `script.${format}`
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = fileName
+      a.click()
+    } catch (e) { console.error(e) }
+    setExportLoading(null)
   }
 
   const curMode = MODES.find(m=>m.key===mode)!
@@ -248,11 +287,22 @@ export default function Tool({ session }: { session: any }) {
                   </div>
                 )}
               </div>
-              {videoTitle && (
+              {videoInfo ? (
+                <div style={{marginTop:'8px',padding:'10px 12px',background:'rgba(139,92,246,0.06)',border:'1px solid rgba(139,92,246,0.2)',borderRadius:'10px',display:'flex',alignItems:'center',gap:'10px'}}>
+                  <img src={videoInfo.thumbnailMq} alt="" style={{width:'64px',height:'40px',borderRadius:'6px',objectFit:'cover',flexShrink:0}}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <p style={{fontSize:'12px',fontWeight:600,color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:'0 0 2px'}}>{videoInfo.title}</p>
+                    <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                      <span style={{fontSize:'11px',color:'var(--violet)'}}>📺 {videoInfo.channel}</span>
+                      {videoInfo.duration && <span style={{fontSize:'11px',color:'var(--text3)'}}>⏱ {videoInfo.duration}</span>}
+                    </div>
+                  </div>
+                </div>
+              ) : videoTitle ? (
                 <p style={{fontSize:'11px',color:'var(--violet)',marginTop:'5px',display:'flex',alignItems:'center',gap:'5px'}}>
                   <span>✓</span>{videoTitle}
                 </p>
-              )}
+              ) : null}
             </div>
 
             {/* AI Provider */}
@@ -413,7 +463,7 @@ export default function Tool({ session }: { session: any }) {
                 </span>
                 {detectedLang&&<span style={{fontSize:'10px',color:'var(--text3)',background:'var(--surface2)',padding:'2px 7px',borderRadius:'100px'}}>sursă: {detectedLang}</span>}
               </div>
-              <div style={{display:'flex',gap:'5px'}}>
+              <div style={{display:'flex',gap:'5px',flexWrap:'wrap'}}>
                 <button onClick={()=>{navigator.clipboard.writeText(preview);setCopied(true);setTimeout(()=>setCopied(false),2000)}}
                   style={{padding:'5px 10px',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',
                     background:copied?'rgba(52,211,153,0.1)':'var(--surface)',
@@ -421,9 +471,17 @@ export default function Tool({ session }: { session: any }) {
                     color:copied?'var(--green)':'var(--text3)'}}>
                   {copied?'✓ Copiat':'⎘ Copiază'}
                 </button>
-                <button onClick={()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([preview],{type:'text/plain'}));a.download=`${videoTitle||'script'}.txt`;a.click()}}
+                <button onClick={()=>downloadExport('txt')} disabled={!!exportLoading}
                   style={{padding:'5px 10px',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',background:'var(--surface)',border:'1px solid var(--border)',color:'var(--text3)'}}>
-                  ↓ .txt
+                  {exportLoading==='txt'?'..':'↓ .txt'}
+                </button>
+                <button onClick={()=>downloadExport('md')} disabled={!!exportLoading}
+                  style={{padding:'5px 10px',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',background:'rgba(99,102,241,0.08)',border:'1px solid rgba(99,102,241,0.2)',color:'var(--violet)'}}>
+                  {exportLoading==='md'?'..':'↓ .md'}
+                </button>
+                <button onClick={()=>downloadExport('docx')} disabled={!!exportLoading}
+                  style={{padding:'5px 10px',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.2)',color:'#60A5FA'}}>
+                  {exportLoading==='docx'?'..':'↓ .docx'}
                 </button>
               </div>
             </div>
