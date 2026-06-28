@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { YoutubeTranscript } from 'youtube-transcript'
 
 function extractVideoId(url: string): string | null {
   const m = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([A-Za-z0-9_-]{11})/)
@@ -14,6 +13,48 @@ async function getVideoTitle(videoId: string): Promise<string> {
     const data = await res.json()
     return data.title ?? `Video ${videoId}`
   } catch { return `Video ${videoId}` }
+}
+
+async function getTranscriptSupadata(videoId: string): Promise<{text: string, lang: string}> {
+  const apiKey = process.env.SUPADATA_API_KEY
+  if (!apiKey) throw new Error('SUPADATA_API_KEY lipsă')
+  
+  const res = await fetch(`https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}&text=true`, {
+    headers: { 'x-api-key': apiKey }
+  })
+  
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`Supadata ${res.status}: ${errText}`)
+  }
+  
+  const data = await res.json()
+  
+  // Log pentru debugging
+  console.log('Supadata response keys:', Object.keys(data))
+  console.log('Supadata data sample:', JSON.stringify(data).slice(0, 300))
+  
+  // Supadata v1 returnează { content: string, lang: string }
+  // dar poate returna și alte formate
+  let text = ''
+  
+  if (typeof data.content === 'string' && data.content.length > 0) {
+    text = data.content
+  } else if (typeof data.text === 'string' && data.text.length > 0) {
+    text = data.text
+  } else if (typeof data.transcript === 'string' && data.transcript.length > 0) {
+    text = data.transcript
+  } else if (Array.isArray(data.content)) {
+    text = data.content.map((e: any) => e.text || e).join(' ')
+  } else if (Array.isArray(data)) {
+    text = data.map((e: any) => e.text || e).join(' ')
+  } else if (data.segments && Array.isArray(data.segments)) {
+    text = data.segments.map((e: any) => e.text || e).join(' ')
+  }
+  
+  const lang = data.lang || data.language || data.availableLanguages?.[0] || 'auto'
+  
+  return { text, lang }
 }
 
 export async function POST(req: NextRequest) {
@@ -41,37 +82,24 @@ export async function POST(req: NextRequest) {
 
     const title = await getVideoTitle(videoId)
 
-    // Încearcă mai multe limbi
-    const langs = ['en', 'ro', 'fr', 'de', 'es', 'it', 'pt', 'ru', 'auto']
-    let rawText = ''
-    let detectedLang = 'auto'
-
-    // Prima încercare fără limbă specificată
-    try {
-      const entries = await YoutubeTranscript.fetchTranscript(videoId)
-      rawText = entries.map((e: any) => e.text).join(' ').replace(/\[.*?\]/g, '').replace(/\s+/g, ' ').trim()
-      detectedLang = 'auto'
-    } catch {
-      // Încearcă cu limbi specifice
-      for (const lang of langs.slice(0, -1)) {
-        try {
-          const entries = await YoutubeTranscript.fetchTranscript(videoId, { lang })
-          rawText = entries.map((e: any) => e.text).join(' ').replace(/\[.*?\]/g, '').replace(/\s+/g, ' ').trim()
-          detectedLang = lang
-          break
-        } catch { continue }
-      }
-    }
-
-    if (!rawText) {
+    const result = await getTranscriptSupadata(videoId)
+    
+    if (!result.text || result.text.length < 10) {
       return NextResponse.json({
-        error: 'Acest video nu are subtitrări disponibile. Încearcă un alt video cu CC activat.'
+        error: `Transcriptul este gol sau prea scurt. Răspuns Supadata invalid.`
       }, { status: 400 })
     }
 
-    return NextResponse.json({ videoId, title, rawText, detectedLang })
+    return NextResponse.json({ 
+      videoId, 
+      title, 
+      rawText: result.text, 
+      detectedLang: result.lang 
+    })
+    
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Eroare necunoscută'
+    console.error('Transcript error:', msg)
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
