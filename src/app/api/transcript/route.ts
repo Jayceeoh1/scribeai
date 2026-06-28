@@ -15,35 +15,52 @@ async function getVideoTitle(videoId: string): Promise<string> {
   } catch { return `Video ${videoId}` }
 }
 
-async function getTranscriptSupadata(videoId: string) {
+async function getTranscriptSupadata(videoId: string): Promise<{text: string, lang: string}> {
   const apiKey = process.env.SUPADATA_API_KEY
   if (!apiKey) throw new Error('SUPADATA_API_KEY lipsă')
+  
   const res = await fetch(`https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}&text=true`, {
     headers: { 'x-api-key': apiKey }
   })
-  if (!res.ok) throw new Error(`Supadata error: ${res.status}`)
+  
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`Supadata ${res.status}: ${errText}`)
+  }
+  
   const data = await res.json()
   
-  // Supadata poate returna text direct sau în content/transcript
-  const text = data.content || data.transcript || data.text || 
-    (Array.isArray(data) ? data.map((e:any) => e.text).join(' ') : '') ||
-    (data.segments ? data.segments.map((e:any) => e.text).join(' ') : '')
+  // Log pentru debugging
+  console.log('Supadata response keys:', Object.keys(data))
+  console.log('Supadata data sample:', JSON.stringify(data).slice(0, 300))
   
-  return { text, lang: data.lang || data.language || 'auto' }
-}
-
-async function getTranscriptDirect(videoId: string) {
-  const { YoutubeTranscript } = await import('youtube-transcript')
-  const entries = await YoutubeTranscript.fetchTranscript(videoId)
-  const text = entries.map((e: any) => e.text).join(' ').replace(/\[.*?\]/g, '').replace(/\s+/g, ' ').trim()
-  return { text, lang: 'auto' }
+  // Supadata v1 returnează { content: string, lang: string }
+  // dar poate returna și alte formate
+  let text = ''
+  
+  if (typeof data.content === 'string' && data.content.length > 0) {
+    text = data.content
+  } else if (typeof data.text === 'string' && data.text.length > 0) {
+    text = data.text
+  } else if (typeof data.transcript === 'string' && data.transcript.length > 0) {
+    text = data.transcript
+  } else if (Array.isArray(data.content)) {
+    text = data.content.map((e: any) => e.text || e).join(' ')
+  } else if (Array.isArray(data)) {
+    text = data.map((e: any) => e.text || e).join(' ')
+  } else if (data.segments && Array.isArray(data.segments)) {
+    text = data.segments.map((e: any) => e.text || e).join(' ')
+  }
+  
+  const lang = data.lang || data.language || data.availableLanguages?.[0] || 'auto'
+  
+  return { text, lang }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession()
     
-    // Verificare limită Free server-side
     if (session?.user?.id) {
       const plan = (session.user as any).plan || 'FREE'
       const isPro = plan === 'PRO' || plan === 'ENTERPRISE'
@@ -65,36 +82,24 @@ export async function POST(req: NextRequest) {
 
     const title = await getVideoTitle(videoId)
 
-    let rawText = ''
-    let detectedLang = 'auto'
-
-    // Încearcă Supadata mai întâi
-    try {
-      const result = await getTranscriptSupadata(videoId)
-      if (result.text && result.text.length > 50) {
-        rawText = result.text
-        detectedLang = result.lang
-      } else {
-        throw new Error('Text prea scurt de la Supadata')
-      }
-    } catch (e) {
-      // Fallback la youtube-transcript direct
-      try {
-        const result = await getTranscriptDirect(videoId)
-        rawText = result.text
-        detectedLang = result.lang
-      } catch {
-        return NextResponse.json({
-          error: 'Acest video nu are subtitrări disponibile. Încearcă alt video.'
-        }, { status: 400 })
-      }
+    const result = await getTranscriptSupadata(videoId)
+    
+    if (!result.text || result.text.length < 10) {
+      return NextResponse.json({
+        error: `Transcriptul este gol sau prea scurt. Răspuns Supadata invalid.`
+      }, { status: 400 })
     }
 
-    if (!rawText) return NextResponse.json({ error: 'Transcriptul este gol.' }, { status: 400 })
-
-    return NextResponse.json({ videoId, title, rawText, detectedLang })
+    return NextResponse.json({ 
+      videoId, 
+      title, 
+      rawText: result.text, 
+      detectedLang: result.lang 
+    })
+    
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Eroare necunoscută'
-    return NextResponse.json({ error: `Eroare: ${msg}` }, { status: 500 })
+    console.error('Transcript error:', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
