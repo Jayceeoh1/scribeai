@@ -118,8 +118,25 @@ export default function Tool({ session }: { session: any }) {
   const stepIdx  = allKeys.indexOf(step)
   const stepLbl: Record<string,string> = {fetching:'Transcript',translating:'Traducere',uploading:'Trello',downloading:'Descărcare',done:'Gata'}
 
+  const isPro = plan === 'PRO' || plan === 'ENTERPRISE'
+  const videosUsed = (session?.user as any)?.videosUsed || 0
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); reset()
+
+    // Verificare plan PRO
+    if ((mode==='trello' || mode==='download') && !isPro) {
+      setStep('error')
+      setError('Acest feature necesită planul Pro. Upgradează pentru acces la Trello și Download.')
+      return
+    }
+
+    // Verificare limită Free
+    if (!isPro && videosUsed >= 3) {
+      setStep('error')
+      setError('Ai atins limita de 3 video-uri gratuite pe lună. Upgradează la Pro pentru video-uri nelimitate.')
+      return
+    }
 
     if (mode==='download') {
       setStep('downloading');setStatus('Se procesează...');setDlProgress('Inițializez...')
@@ -186,12 +203,15 @@ export default function Tool({ session }: { session: any }) {
         <div style={{display:'flex',gap:'4px',padding:'4px',background:'rgba(255,255,255,0.04)',borderRadius:'12px',border:'1px solid var(--border)'}}>
           {MODES.map(m=>{
             const active=mode===m.key
+            const locked = m.badge==='PRO' && !isPro
             return (
-              <button key={m.key} type="button" disabled={isLoading} onClick={()=>{setMode(m.key);reset()}}
+              <button key={m.key} type="button" disabled={isLoading}
+                onClick={()=>{ if(locked){window.location.href='/pricing';return} setMode(m.key);reset() }}
                 style={{flex:1,padding:'10px 6px',borderRadius:'9px',cursor:'pointer',transition:'all .2s',outline:'none',
                   background:active?`linear-gradient(135deg,rgba(139,92,246,0.15),rgba(99,102,241,0.1))`:'transparent',
                   border:active?'1px solid rgba(139,92,246,0.35)':'1px solid transparent',
-                  textAlign:'center'}}>
+                  textAlign:'center', opacity: locked ? 0.6 : 1, position:'relative'}}>
+                {locked && <span style={{position:'absolute',top:'4px',right:'4px',fontSize:'10px'}}>🔒</span>}
                 <div style={{fontSize:'16px',color:active?'var(--violet)':'var(--text3)',marginBottom:'3px'}}>{m.icon}</div>
                 <div style={{fontSize:'11px',fontWeight:700,color:active?'var(--text)':'var(--text3)'}}>{m.label}</div>
                 <div style={{fontSize:'9px',fontWeight:700,marginTop:'3px',padding:'1px 6px',borderRadius:'100px',display:'inline-block',
