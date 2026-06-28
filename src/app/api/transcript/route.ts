@@ -23,7 +23,13 @@ async function getTranscriptSupadata(videoId: string) {
   })
   if (!res.ok) throw new Error(`Supadata error: ${res.status}`)
   const data = await res.json()
-  return { text: data.content || '', lang: data.lang || 'auto' }
+  
+  // Supadata poate returna text direct sau în content/transcript
+  const text = data.content || data.transcript || data.text || 
+    (Array.isArray(data) ? data.map((e:any) => e.text).join(' ') : '') ||
+    (data.segments ? data.segments.map((e:any) => e.text).join(' ') : '')
+  
+  return { text, lang: data.lang || data.language || 'auto' }
 }
 
 async function getTranscriptDirect(videoId: string) {
@@ -62,11 +68,17 @@ export async function POST(req: NextRequest) {
     let rawText = ''
     let detectedLang = 'auto'
 
+    // Încearcă Supadata mai întâi
     try {
       const result = await getTranscriptSupadata(videoId)
-      rawText = result.text
-      detectedLang = result.lang
-    } catch {
+      if (result.text && result.text.length > 50) {
+        rawText = result.text
+        detectedLang = result.lang
+      } else {
+        throw new Error('Text prea scurt de la Supadata')
+      }
+    } catch (e) {
+      // Fallback la youtube-transcript direct
       try {
         const result = await getTranscriptDirect(videoId)
         rawText = result.text
