@@ -75,15 +75,24 @@ model ApiKeys {
 }
 
 model History {
-  id           String   @id @default(cuid())
-  userId       String
-  videoUrl     String
-  videoTitle   String
-  sourceLang   String
-  targetLang   String
-  mode         String
-  createdAt    DateTime @default(now())
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  userId        String
+  videoUrl      String
+  videoTitle    String
+  videoChannel  String?
+  videoDuration String?
+  thumbnail     String?
+  sourceLang    String
+  targetLang    String
+  mode          String
+  scriptText    String?   @db.Text
+  trelloCardUrl String?
+  trelloDate    DateTime?
+  shareId       String?   @unique @default(cuid())
+  aiProvider    String?
+  aiModel       String?
+  createdAt     DateTime  @default(now())
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum Plan {

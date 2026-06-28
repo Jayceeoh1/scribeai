@@ -35,6 +35,15 @@ const AI_PROVIDERS = [
   {key:'deepseek',label:'DeepSeek',color:'#536DFE',models:[{key:'deepseek-chat',label:'V3'},{key:'deepseek-reasoner',label:'R1'}]},
 ]
 
+const PROMPT_TEMPLATES = [
+  { icon:'📝', label:'Articol blog', prompt:'Rescrie ca articol de blog profesional cu introducere, 3-5 secțiuni și concluzie.' },
+  { icon:'🐦', label:'Thread Twitter', prompt:'Transformă în thread de Twitter cu 8-12 tweet-uri numerotate, fiecare sub 280 caractere.' },
+  { icon:'📧', label:'Newsletter', prompt:'Rescrie ca newsletter captivant cu subiect, introducere, puncte cheie și call-to-action.' },
+  { icon:'📋', label:'Rezumat', prompt:'Creează un rezumat executiv de 200 cuvinte cu cele mai importante idei.' },
+  { icon:'🎯', label:'Bullet points', prompt:'Extrage și prezintă toate informațiile cheie ca bullet points clare și concise.' },
+  { icon:'📚', label:'Ghid pas cu pas', prompt:'Transformă în ghid pas cu pas numerotate, ușor de urmărit.' },
+]
+
 const MODES = [
   {key:'extract'  as Mode, icon:'▶', label:'Transcript', badge:'FREE', bcolor:'var(--teal)',   bbg:'var(--tealbg)',   bbdr:'var(--tealbdr)'},
   {key:'translate'as Mode, icon:'✦', label:'Traduce',    badge:'FREE', bcolor:'var(--teal)',   bbg:'var(--tealbg)',   bbdr:'var(--tealbdr)'},
@@ -205,7 +214,11 @@ export default function Tool({ session }: { session: any }) {
 
     if(mode==='extract'){
       setPreview(rawText);setStep('done')
-      await fetch('/api/history',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({videoUrl:url,videoTitle:title||videoTitle,sourceLang:dl,targetLang:targetLang.label,mode})})
+      await fetch('/api/history',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        videoUrl:url, videoTitle:title||videoTitle, sourceLang:dl, targetLang:targetLang.label, mode,
+        videoChannel:videoInfo?.channel, videoDuration:videoInfo?.duration, thumbnail:videoInfo?.thumbnailMq,
+        scriptText:rawText, aiProvider:aiProvider.key, aiModel:aiModel.key
+      })})
       return
     }
 
@@ -217,7 +230,11 @@ export default function Tool({ session }: { session: any }) {
 
     if(mode==='translate'){
       setStep('done')
-      await fetch('/api/history',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({videoUrl:url,videoTitle:title||videoTitle,sourceLang:dl,targetLang:targetLang.label,mode})})
+      await fetch('/api/history',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        videoUrl:url, videoTitle:title||videoTitle, sourceLang:dl, targetLang:targetLang.label, mode,
+        videoChannel:videoInfo?.channel, videoDuration:videoInfo?.duration, thumbnail:videoInfo?.thumbnailMq,
+        scriptText:translated, aiProvider:aiProvider.key, aiModel:aiModel.key
+      })})
       return
     }
 
@@ -226,7 +243,11 @@ export default function Tool({ session }: { session: any }) {
     const trData=await trRes.json()
     if(!trRes.ok){setStep('error');setError(trData.error);return}
     setCardUrl(trData.cardUrl);setStep('done')
-    await fetch('/api/history',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({videoUrl:url,videoTitle:title||videoTitle,sourceLang:dl,targetLang:targetLang.label,mode})})
+    await fetch('/api/history',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      videoUrl:url, videoTitle:title||videoTitle, sourceLang:dl, targetLang:targetLang.label, mode,
+      videoChannel:videoInfo?.channel, videoDuration:videoInfo?.duration, thumbnail:videoInfo?.thumbnailMq,
+      scriptText:translated, trelloCardUrl:trData.cardUrl, aiProvider:aiProvider.key, aiModel:aiModel.key
+    })})
   }
 
   // input style
@@ -367,10 +388,23 @@ export default function Tool({ session }: { session: any }) {
                   <span style={{fontSize:'9px',fontWeight:700,padding:'2px 7px',borderRadius:'100px',background:'var(--goldbg)',border:'1px solid var(--goldbdr)',color:'var(--gold)'}}>PRO</span>
                 </button>
                 {promptOpen && (
-                  <textarea value={customPrompt} onChange={e=>setCustomPrompt(e.target.value)} rows={3} disabled={isLoading}
-                    placeholder='"Rescrie ca articol de blog" sau "Extrage doar sfaturile practice"'
-                    style={{...inp,marginTop:'8px',resize:'vertical',fontSize:'13px',borderColor:'rgba(139,92,246,0.2)'}}
-                  />
+                  <div style={{marginTop:'8px'}}>
+                    <div style={{display:'flex',gap:'5px',flexWrap:'wrap',marginBottom:'8px'}}>
+                      {PROMPT_TEMPLATES.map(t=>(
+                        <button key={t.label} type="button" onClick={()=>setCustomPrompt(t.prompt)}
+                          style={{padding:'4px 10px',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',
+                            background:customPrompt===t.prompt?'rgba(139,92,246,.15)':'var(--surface)',
+                            border:`1px solid ${customPrompt===t.prompt?'rgba(139,92,246,.4)':'var(--border)'}`,
+                            color:customPrompt===t.prompt?'var(--violet)':'var(--text3)'}}>
+                          {t.icon} {t.label}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea value={customPrompt} onChange={e=>setCustomPrompt(e.target.value)} rows={3} disabled={isLoading}
+                      placeholder='"Rescrie ca articol de blog" sau alege un template de mai sus'
+                      style={{...inp,resize:'vertical',fontSize:'13px',borderColor:'rgba(139,92,246,0.2)'}}
+                    />
+                  </div>
                 )}
               </div>
             )}
