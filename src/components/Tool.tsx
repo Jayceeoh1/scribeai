@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 
-type Mode = 'extract' | 'translate' | 'trello' | 'download' | 'generate'
+type Mode = 'extract' | 'translate' | 'trello' | 'download' | 'generate' | 'batch'
 type Step = 'idle' | 'fetching' | 'translating' | 'uploading' | 'downloading' | 'done' | 'error'
 
 const LANGUAGES = [
@@ -39,6 +39,7 @@ const MODES = [
   {key:'trello'   as Mode,icon:'⬡',label:'Trello',badge:'PRO',bcolor:'var(--gold)',bbg:'var(--goldbg)',bbdr:'var(--goldbdr)'},
   {key:'download' as Mode,icon:'↓',label:'Download',badge:'PRO',bcolor:'var(--gold)',bbg:'var(--goldbg)',bbdr:'var(--goldbdr)'},
   {key:'generate' as Mode,icon:'✦',label:'Script AI',badge:'PRO',bcolor:'#F0C444',bbg:'var(--goldbg)',bbdr:'var(--goldbdr)'},
+  {key:'batch'    as Mode,icon:'⚡',label:'Batch',    badge:'PRO',bcolor:'#34D399',bbg:'rgba(52,211,153,.08)',bbdr:'rgba(52,211,153,.25)'},
 ]
 
 const PROMPT_TEMPLATES = [
@@ -341,6 +342,7 @@ export default function Tool({ session }: { session: any }) {
   const isLoading=['fetching','translating','uploading','downloading'].includes(step)
   const needsLang=mode==='translate'||mode==='trello'
   const isGenerate=mode==='generate'
+  const isBatch=mode==='batch'
   const stepsFor=mode==='extract'?['fetching','done']:mode==='translate'?['fetching','translating','done']:mode==='trello'?['fetching','translating','uploading','done']:['downloading','done']
   const allKeys=['fetching','translating','uploading','downloading','done']
   const stepIdx=allKeys.indexOf(step)
@@ -569,8 +571,112 @@ export default function Tool({ session }: { session: any }) {
             </div>
           )}
 
+          {/* ── BATCH MODE ── */}
+          {isBatch && (
+            <div style={{display:'flex',flexDirection:'column',gap:'14px'}}>
+              {!isPro ? (
+                <div style={{textAlign:'center',padding:'32px 20px',background:'rgba(52,211,153,.06)',border:'1px solid rgba(52,211,153,.2)',borderRadius:'14px'}}>
+                  <div style={{fontSize:'32px',marginBottom:'10px'}}>⚡</div>
+                  <p style={{fontWeight:700,color:'var(--green)',marginBottom:'6px'}}>Feature exclusiv Pro</p>
+                  <p style={{fontSize:'13px',color:'var(--text2)',marginBottom:'16px'}}>Procesează 3 video-uri simultan cu traducere automată.</p>
+                  <a href="/pricing" style={{display:'inline-block',padding:'10px 24px',borderRadius:'9px',background:'linear-gradient(135deg,var(--violet2),var(--indigo))',color:'white',fontWeight:700,textDecoration:'none',fontSize:'13px'}}>⚡ Upgrade la Pro</a>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'8px'}}>3 URL-uri YouTube</label>
+                    <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                      {batchUrls.map((u,i)=>(
+                        <div key={i} style={{position:'relative'}}>
+                          <span style={{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'12px',color:'var(--text3)',fontWeight:700}}>{i+1}</span>
+                          <input value={u} onChange={e=>{const n=[...batchUrls];n[i]=e.target.value;setBatchUrls(n)}}
+                            placeholder={`https://youtu.be/... (URL ${i+1})`} disabled={batchLoading}
+                            style={{...inp,paddingLeft:'30px'}}
+                            onFocus={e=>e.target.style.borderColor='rgba(52,211,153,.4)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,.09)'}/>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
+                    <div ref={langRef} style={{position:'relative'}}>
+                      <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'7px'}}>Traduce în</label>
+                      <button type="button" disabled={batchLoading} onClick={()=>setLangOpen(o=>!o)}
+                        style={{...inp,display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer',borderColor:langOpen?'rgba(52,211,153,.4)':'rgba(255,255,255,.09)'}}>
+                        <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                          <span style={{fontWeight:700,fontSize:'11px',color:'var(--green)',background:'rgba(52,211,153,.1)',padding:'2px 6px',borderRadius:'5px'}}>{targetLang.short}</span>
+                          {targetLang.label}
+                        </span>
+                        <span style={{color:'var(--text3)',fontSize:'10px'}}>▼</span>
+                      </button>
+                      {langOpen&&(
+                        <div style={{position:'absolute',top:'calc(100% + 5px)',left:0,right:0,zIndex:50,borderRadius:'12px',background:'#0C0C18',border:'1px solid rgba(52,211,153,.2)',boxShadow:'0 20px 48px rgba(0,0,0,.6)',maxHeight:'200px',overflowY:'auto'}}>
+                          {LANGUAGES.map(lang=>(
+                            <div key={lang.code} onClick={()=>{setTargetLang(lang);setLangOpen(false)}}
+                              style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 14px',cursor:'pointer',fontSize:'13px',color:targetLang.code===lang.code?'var(--green)':'var(--text2)',background:targetLang.code===lang.code?'rgba(52,211,153,.08)':'transparent'}}>
+                              <span style={{fontWeight:600,fontSize:'11px',color:'var(--text3)',background:'var(--surface2)',padding:'2px 6px',borderRadius:'4px',minWidth:'28px',textAlign:'center'}}>{lang.short}</span>
+                              {lang.label}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'7px'}}>Model AI</label>
+                      <div style={{display:'flex',gap:'4px',flexWrap:'wrap'}}>
+                        {AI_PROVIDERS.map(p=>(
+                          <button key={p.key} type="button" disabled={batchLoading} onClick={()=>{setAiProvider(p);setAiModel(p.models[0])}}
+                            style={{padding:'6px 10px',borderRadius:'7px',border:`1px solid ${aiProvider.key===p.key?p.color+'55':'var(--border)'}`,background:aiProvider.key===p.key?`${p.color}12`:'var(--surface)',cursor:'pointer',fontSize:'11px',fontWeight:700,color:aiProvider.key===p.key?p.color:'var(--text3)'}}>
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  {batchLoading && (
+                    <div style={{padding:'12px',background:'rgba(52,211,153,.06)',border:'1px solid rgba(52,211,153,.2)',borderRadius:'10px'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px'}}>
+                        <span style={{fontSize:'12px',color:'var(--green)',fontWeight:600}}>Procesez video {batchProgress} din {batchUrls.filter(u=>u.trim()).length}...</span>
+                      </div>
+                      <div style={{height:'3px',background:'var(--surface2)',borderRadius:'100px',overflow:'hidden'}}>
+                        <div style={{height:'100%',background:'linear-gradient(90deg,var(--green),var(--teal))',width:`${(batchProgress/batchUrls.filter(u=>u.trim()).length)*100}%`,transition:'width .5s'}}/>
+                      </div>
+                    </div>
+                  )}
+                  <button type="button" onClick={processBatch} disabled={batchLoading||batchUrls.every(u=>!u.trim())}
+                    style={{width:'100%',padding:'14px',borderRadius:'11px',border:'none',cursor:batchLoading?'not-allowed':'pointer',fontFamily:'Inter,sans-serif',fontSize:'15px',fontWeight:700,
+                      background:batchLoading?'rgba(52,211,153,.1)':'linear-gradient(135deg,#059669,#10B981)',
+                      color:batchLoading?'var(--text3)':'white',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
+                    {batchLoading?<><svg className="spin" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,.2)" strokeWidth="3"/><path d="M12 2a10 10 0 0 1 10 10" stroke="white" strokeWidth="3" strokeLinecap="round"/></svg>Se procesează...</>:'⚡ Procesează toate simultan'}
+                  </button>
+                  {batchResults.length>0&&(
+                    <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
+                      {batchResults.map((r,i)=>(
+                        <div key={i} style={{background:r.error?'rgba(248,113,113,.06)':'var(--bg2)',border:`1px solid ${r.error?'rgba(248,113,113,.2)':'rgba(52,211,153,.2)'}`,borderRadius:'12px',overflow:'hidden'}}>
+                          <div style={{padding:'10px 14px',borderBottom:`1px solid ${r.error?'rgba(248,113,113,.1)':'rgba(52,211,153,.1)'}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                            <span style={{fontSize:'12px',fontWeight:600,color:r.error?'#FCA5A5':'var(--green)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'70%'}}>{r.error?'❌':'✓'} {r.title}</span>
+                            {!r.error&&(
+                              <div style={{display:'flex',gap:'5px'}}>
+                                <button onClick={()=>navigator.clipboard.writeText(r.text)}
+                                  style={{padding:'4px 9px',borderRadius:'5px',fontSize:'11px',background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.2)',color:'var(--green)',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>⎘ Copiază</button>
+                                {r.shareId&&<button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/share/${r.shareId}`);setShareCopied(true);setTimeout(()=>setShareCopied(false),2000)}}
+                                  style={{padding:'4px 9px',borderRadius:'5px',fontSize:'11px',background:'var(--goldbg)',border:'1px solid var(--goldbdr)',color:'var(--gold)',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>{shareCopied?'✓':'🔗 Share'}</button>}
+                              </div>
+                            )}
+                          </div>
+                          {r.error?<p style={{padding:'10px 14px',fontSize:'12px',color:'rgba(248,113,113,.7)',margin:0}}>{r.error}</p>:(
+                            <div style={{padding:'12px 14px',fontSize:'12px',lineHeight:1.7,color:'var(--text2)',maxHeight:'150px',overflowY:'auto',whiteSpace:'pre-wrap'}}>{r.text?.slice(0,300)}...</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           {/* ── NORMAL FORM ── */}
-          <form onSubmit={handleSubmit} style={{display:isGenerate?'none':'flex',flexDirection:'column',gap:'16px'}}>
+          <form onSubmit={handleSubmit} style={{display:isGenerate||isBatch?'none':'flex',flexDirection:'column',gap:'16px'}}>
 
             {/* URL */}
             <div>
@@ -933,52 +1039,6 @@ export default function Tool({ session }: { session: any }) {
               Dashboard →
             </a>
           </div>
-        </div>
-
-        {/* Batch Processing */}
-        <div style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'14px',padding:'14px'}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'10px'}}>
-            <p style={{fontSize:'10px',fontWeight:700,color:'var(--text3)',letterSpacing:'.07em',textTransform:'uppercase',margin:0}}>⚡ Batch (3 video-uri)</p>
-            {!isPro&&<span style={{fontSize:'9px',fontWeight:700,padding:'2px 7px',borderRadius:'100px',background:'var(--goldbg)',border:'1px solid var(--goldbdr)',color:'var(--gold)'}}>PRO</span>}
-          </div>
-          {!isPro ? (
-            <p style={{fontSize:'11px',color:'var(--text3)',marginBottom:'8px'}}>Procesează 3 video-uri simultan. Feature exclusiv Pro.</p>
-          ) : (
-            <>
-              <div style={{display:'flex',flexDirection:'column',gap:'6px',marginBottom:'10px'}}>
-                {batchUrls.map((u,i)=>(
-                  <input key={i} value={u} onChange={e=>{const n=[...batchUrls];n[i]=e.target.value;setBatchUrls(n)}}
-                    placeholder={`URL ${i+1}...`} disabled={batchLoading}
-                    style={{width:'100%',background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'7px',padding:'7px 10px',color:'var(--text)',fontSize:'11px',fontFamily:'Inter,sans-serif',outline:'none'}}
-                    onFocus={e=>e.target.style.borderColor='rgba(139,92,246,.4)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,.08)'}/>
-                ))}
-              </div>
-              <div style={{marginBottom:'8px',fontSize:'11px',color:'var(--text3)'}}>Traduce în: {targetLang.label}</div>
-              <button type="button" onClick={processBatch} disabled={batchLoading||batchUrls.every(u=>!u.trim())}
-                style={{width:'100%',padding:'9px',borderRadius:'8px',border:'none',cursor:'pointer',fontFamily:'Inter,sans-serif',fontSize:'12px',fontWeight:700,
-                  background:batchLoading?'rgba(139,92,246,.1)':'linear-gradient(135deg,var(--violet2),var(--indigo))',
-                  color:batchLoading?'var(--text3)':'white'}}>
-                {batchLoading?`Procesez ${batchProgress}/3...`:'⚡ Procesează toate'}
-              </button>
-              {batchResults.length>0&&(
-                <div style={{marginTop:'10px',display:'flex',flexDirection:'column',gap:'6px'}}>
-                  {batchResults.map((r,i)=>(
-                    <div key={i} style={{padding:'8px 10px',borderRadius:'8px',background:r.error?'rgba(248,113,113,.06)':'rgba(52,211,153,.06)',border:`1px solid ${r.error?'rgba(248,113,113,.2)':'rgba(52,211,153,.2)'}`}}>
-                      <p style={{fontSize:'11px',fontWeight:600,color:r.error?'#FCA5A5':'var(--green)',margin:'0 0 3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.title}</p>
-                      {r.error?<p style={{fontSize:'10px',color:'rgba(248,113,113,.7)',margin:0}}>{r.error}</p>:(
-                        <div style={{display:'flex',gap:'5px',marginTop:'4px'}}>
-                          <button onClick={()=>navigator.clipboard.writeText(r.text)}
-                            style={{padding:'3px 8px',borderRadius:'5px',fontSize:'10px',background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.2)',color:'var(--green)',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>⎘ Copiază</button>
-                          {r.shareId&&<button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/share/${r.shareId}`);setShareCopied(true);setTimeout(()=>setShareCopied(false),2000)}}
-                            style={{padding:'3px 8px',borderRadius:'5px',fontSize:'10px',background:'var(--goldbg)',border:'1px solid var(--goldbdr)',color:'var(--gold)',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>🔗 Share</button>}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
         </div>
 
         {/* Tips */}
