@@ -48,6 +48,7 @@ export default function ThumbnailGenerator() {
   const [bgOverlay, setBgOverlay] = useState(true)
 
   // Inspiratie
+  const [imageProvider, setImageProvider] = useState<'replicate'|'grok'>('replicate')
   const [inspireImages, setInspireImages] = useState<string[]>([])
   const [analyzing, setAnalyzing] = useState(false)
   const [analysisResult, setAnalysisResult] = useState<any>(null)
@@ -223,7 +224,7 @@ export default function ThumbnailGenerator() {
         const res = await fetch('/api/generate-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: fullPrompt, width: 1280, height: 720 })
+          body: JSON.stringify({ prompt: fullPrompt, width: 1280, height: 720, provider: imageProvider })
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Eroare generare')
@@ -360,6 +361,28 @@ export default function ThumbnailGenerator() {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* Provider selector */}
+                <div>
+                  <label style={{ display:'block', fontSize:'10px', fontWeight:600, letterSpacing:'.09em', textTransform:'uppercase', color:'var(--text3)', marginBottom:'6px' }}>Provider imagine AI</label>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'6px' }}>
+                    <button type="button" onClick={()=>setImageProvider('replicate')} disabled={loading}
+                      style={{ padding:'9px', borderRadius:'8px', fontSize:'12px', fontWeight:700, cursor:'pointer', fontFamily:'Inter,sans-serif', border:'none',
+                        background:imageProvider==='replicate'?'linear-gradient(135deg,var(--violet2),var(--indigo))':'var(--surface)',
+                        color:imageProvider==='replicate'?'white':'var(--text3)' }}>
+                      ⚡ Flux 1.1 Pro
+                    </button>
+                    <button type="button" onClick={()=>setImageProvider('grok')} disabled={loading}
+                      style={{ padding:'9px', borderRadius:'8px', fontSize:'12px', fontWeight:700, cursor:'pointer', fontFamily:'Inter,sans-serif', border:'none',
+                        background:imageProvider==='grok'?'linear-gradient(135deg,#1DA1F2,#0d8fd9)':'var(--surface)',
+                        color:imageProvider==='grok'?'white':'var(--text3)' }}>
+                      𝕏 Grok Imagine
+                    </button>
+                  </div>
+                  <p style={{ fontSize:'10px', color:'var(--text3)', marginTop:'4px' }}>
+                    {imageProvider==='replicate'?'Flux 1.1 Pro — calitate maximă (~$0.04/img)':'Grok Imagine — rapid și gratuit cu cheia xAI'}
+                  </p>
                 </div>
 
                 <button onClick={generateThumbnails} disabled={loading||(!prompt&&!hookText)||!canGenerate}
@@ -539,7 +562,7 @@ export default function ThumbnailGenerator() {
                 <div style={{ padding:'10px 14px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                   <span style={{ fontSize:'12px', fontWeight:600, color:'var(--gold)' }}>🖼️ Preview 1280×720</span>
                   <div style={{ display:'flex', gap:'6px' }}>
-                    <span style={{ fontSize:'11px', color:'var(--green)', background:'rgba(52,211,153,.1)', padding:'2px 8px', borderRadius:'100px', border:'1px solid rgba(52,211,153,.2)' }}>Flux 1.1 Pro</span>
+                    <span style={{ fontSize:'11px', color:'var(--green)', background:'rgba(52,211,153,.1)', padding:'2px 8px', borderRadius:'100px', border:'1px solid rgba(52,211,153,.2)' }}>{imageProvider==='grok'?'𝕏 Grok Imagine':'⚡ Flux 1.1 Pro'}</span>
                     {hookText && <span style={{ fontSize:'11px', color:'var(--violet)', background:'rgba(139,92,246,.1)', padding:'2px 8px', borderRadius:'100px', border:'1px solid rgba(139,92,246,.2)' }}>+ Canvas text</span>}
                   </div>
                 </div>
