@@ -5,10 +5,10 @@ export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, width = 1280, height = 720, provider = 'replicate' } = await req.json()
+    const { prompt, provider = 'replicate' } = await req.json()
     if (!prompt) return NextResponse.json({ error: 'Prompt lipsă' }, { status: 400 })
 
-    console.log('Generate image provider:', provider, 'prompt:', prompt.slice(0, 80))
+    console.log('Generate image provider:', provider)
 
     // ── GROK IMAGINE ──
     if (provider === 'grok') {
@@ -19,9 +19,8 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.GROK_API_KEY}` },
         body: JSON.stringify({
           model: 'grok-imagine-image-quality',
-          prompt,
+          prompt: prompt,
           n: 1,
-          size: '1280x720',
         })
       })
 
@@ -33,17 +32,19 @@ export async function POST(req: NextRequest) {
       }
 
       const data = await res.json()
-      console.log('Grok imagine response:', JSON.stringify(data).slice(0, 200))
-      const imageUrl = data?.data?.[0]?.url || data?.data?.[0]?.b64_json
-      if (!imageUrl) return NextResponse.json({ error: 'Grok nu a returnat imagine' }, { status: 500 })
+      console.log('Grok imagine response:', JSON.stringify(data).slice(0, 300))
       
-      // Dacă e b64, convertim la data URL
-      const finalUrl = imageUrl.startsWith('http') ? imageUrl : `data:image/png;base64,${imageUrl}`
-      return NextResponse.json({ imageUrl: finalUrl })
+      const imageUrl = data?.data?.[0]?.url
+      const b64 = data?.data?.[0]?.b64_json
+      
+      if (imageUrl) return NextResponse.json({ imageUrl })
+      if (b64) return NextResponse.json({ imageUrl: `data:image/png;base64,${b64}` })
+      
+      return NextResponse.json({ error: 'Grok nu a returnat imagine' }, { status: 500 })
     }
 
     // ── REPLICATE FLUX ──
-    if (!process.env.REPLICATE_API_KEY) return NextResponse.json({ error: 'REPLICATE_API_KEY lipsă — adaugă cheia în Railway Variables' }, { status: 500 })
+    if (!process.env.REPLICATE_API_KEY) return NextResponse.json({ error: 'REPLICATE_API_KEY lipsă' }, { status: 500 })
 
     const res = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro/predictions', {
       method: 'POST',
@@ -55,12 +56,13 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         input: {
           prompt,
-          width,
-          height,
+          width: 1344,   // dimensiuni native Flux 16:9
+          height: 768,
           output_format: 'jpg',
-          output_quality: 90,
+          output_quality: 95,
           safety_tolerance: 2,
           prompt_upsampling: true,
+          aspect_ratio: '16:9',
         }
       })
     })
@@ -71,6 +73,7 @@ export async function POST(req: NextRequest) {
     }
 
     const prediction = await res.json()
+    
     if (prediction.status === 'succeeded' && prediction.output) {
       const imageUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output
       return NextResponse.json({ imageUrl })
