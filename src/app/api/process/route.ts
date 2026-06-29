@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     } else if (provider === 'gemini') {
       if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY lipsă')
-      const geminiModel = aiModel || 'gemini-2.0-flash'
+      const geminiModel = (aiModel || 'gemini-1.5-flash').replace('gemini-2.0-flash', 'gemini-1.5-flash')
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${process.env.GEMINI_API_KEY}`
       const gemRes = await fetch(geminiUrl, {
         method: 'POST',
