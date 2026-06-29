@@ -51,20 +51,8 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.5); }
 
 /* Orbs */
-.orb {
-  position: fixed; border-radius: 50%;
-  filter: blur(160px); pointer-events: none; z-index: 0;
-  animation: drift 26s ease-in-out infinite;
-}
-.orb-1 { width:700px;height:700px;background:#5B21B6;opacity:.1;top:-250px;left:-150px; }
-.orb-2 { width:500px;height:500px;background:#8C6B00;opacity:.07;bottom:-150px;right:-100px;animation-delay:-9s; }
-.orb-3 { width:400px;height:400px;background:#1e3a5f;opacity:.08;top:40%;left:55%;animation-delay:-17s; }
-
-@keyframes drift {
-  0%,100%{transform:translate(0,0) scale(1)}
-  33%{transform:translate(28px,-38px) scale(1.04)}
-  66%{transform:translate(-18px,22px) scale(.97)}
-}
+.orb { display: none; }
+.orb-1,.orb-2,.orb-3 { display: none; }
 
 /* Nav gradient line */
 .nav-line {

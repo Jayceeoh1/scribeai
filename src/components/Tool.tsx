@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 type Mode = 'extract' | 'translate' | 'trello' | 'download' | 'generate' | 'batch'
 type Step = 'idle' | 'fetching' | 'translating' | 'uploading' | 'downloading' | 'done' | 'error'
@@ -378,7 +378,26 @@ export default function Tool({ session }: { session: any }) {
 
   const inp:React.CSSProperties={width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:'10px',padding:'12px 14px',color:'var(--text)',fontSize:'14px',fontFamily:'Inter,sans-serif',outline:'none',transition:'border-color .2s'}
 
-  const genStarStyle: React.CSSProperties = { animation: 'spin 4s linear infinite', display: 'inline-block' }
+  const genStarStyle: React.CSSProperties = { display: 'inline-block' }
+
+  const tabsRef = useRef<HTMLDivElement>(null)
+  const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 })
+
+  const updatePill = useCallback((el: HTMLButtonElement) => {
+    const container = tabsRef.current
+    if (!container) return
+    const containerRect = container.getBoundingClientRect()
+    const elRect = el.getBoundingClientRect()
+    setPillStyle({
+      left: elRect.left - containerRect.left,
+      width: elRect.width,
+    })
+  }, [])
+
+  useEffect(() => {
+    const activeBtn = tabsRef.current?.querySelector('[data-active="true"]') as HTMLButtonElement
+    if (activeBtn) updatePill(activeBtn)
+  }, [mode, updatePill])
 
   return (
     <div style={{ background: '#040507', minHeight: '100vh', position: 'relative', overflowX: 'hidden',
@@ -404,29 +423,38 @@ export default function Tool({ session }: { session: any }) {
       ['--text2' as any]: 'rgba(238,238,242,0.55)',
       ['--text3' as any]: 'rgba(238,238,242,0.28)',
     }}>
-      {/* Ambient bg */}
+      {/* Ambient bg — grid de patrate static ca Pikzels */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,.022) 1px, transparent 1px)', backgroundSize: '30px 30px', WebkitMaskImage: 'radial-gradient(ellipse 70% 55% at 50% 30%, black, transparent)' }}/>
-        <div style={{ position: 'absolute', width: '600px', height: '400px', borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,.1) 0%, transparent 70%)', top: '-80px', left: '50%', transform: 'translateX(-50%)' }}/>
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px)', backgroundSize: '40px 40px' }}/>
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, #040507 100%)' }}/>
+        <div style={{ position: 'absolute', width: '500px', height: '300px', background: 'radial-gradient(ellipse, rgba(124,58,237,.08) 0%, transparent 70%)', top: 0, left: '50%', transform: 'translateX(-50%)' }}/>
       </div>
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: '680px', margin: '0 auto', padding: '24px 20px 100px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-        {/* Mode tabs — pill row */}
-        <div style={{ display: 'flex', gap: '4px', padding: '4px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '100px', overflowX: 'auto' }}>
+        {/* Mode tabs — sliding pill */}
+        <div ref={tabsRef} style={{ display: 'flex', gap: '4px', padding: '4px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '100px', overflowX: 'auto', position: 'relative' }}>
+          {/* Pill slider */}
+          <div style={{ position: 'absolute', top: '4px', bottom: '4px', left: pillStyle.left, width: pillStyle.width, background: '#7C3AED', borderRadius: '100px', transition: 'left .3s cubic-bezier(.4,0,.2,1), width .3s cubic-bezier(.4,0,.2,1)', boxShadow: '0 0 18px rgba(124,58,237,.45)', pointerEvents: 'none', zIndex: 0 }}/>
           {MODES.map(m => {
             const active = mode === m.key
             const locked = m.badge === 'PRO' && !isPro
             return (
               <button key={m.key} type="button" disabled={isLoading}
-                onClick={() => { if (locked) { window.location.href = '/pricing'; return } setMode(m.key); reset(); setGenOutput('') }}
-                style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 14px', borderRadius: '100px', cursor: 'pointer', transition: 'all .2s', outline: 'none', whiteSpace: 'nowrap', flexShrink: 0,
-                  background: active ? '#7C3AED' : 'transparent',
+                data-active={active ? 'true' : 'false'}
+                ref={active ? (el) => { if (el) updatePill(el) } : undefined}
+                onClick={(e) => {
+                  if (locked) { window.location.href = '/pricing'; return }
+                  updatePill(e.currentTarget)
+                  setMode(m.key); reset(); setGenOutput('')
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 14px', borderRadius: '100px', cursor: 'pointer', outline: 'none', whiteSpace: 'nowrap', flexShrink: 0,
+                  background: 'transparent',
                   border: 'none',
                   color: active ? '#fff' : 'rgba(255,255,255,.38)',
-                  boxShadow: active ? '0 0 18px rgba(124,58,237,.4)' : 'none',
-                  opacity: locked ? .55 : 1, fontFamily: 'Inter,sans-serif', fontSize: '12px', fontWeight: 700 }}>
+                  opacity: locked ? .55 : 1, fontFamily: 'Inter,sans-serif', fontSize: '12px', fontWeight: 700,
+                  position: 'relative', zIndex: 1, transition: 'color .2s' }}>
                 {locked && <span style={{ fontSize: '9px' }}>🔒</span>}
                 <span>{m.icon}</span>
                 <span>{m.label}</span>
@@ -440,7 +468,7 @@ export default function Tool({ session }: { session: any }) {
 
         {/* Main card */}
         <div style={{ position: 'relative' }}>
-          <div style={{ position: 'absolute', inset: '-1px', borderRadius: '21px', background: 'linear-gradient(135deg,rgba(124,58,237,.3),rgba(12,207,176,.07),rgba(124,58,237,.12))', animation: 'spin 8s linear infinite', zIndex: 0 }}/>
+          <div style={{ position: 'absolute', inset: '-1px', borderRadius: '21px', background: 'linear-gradient(135deg,rgba(124,58,237,.3),rgba(12,207,176,.07),rgba(124,58,237,.12))', zIndex: 0 }}/>
           <div style={{ position: 'relative', zIndex: 1, background: '#0A0C14', border: '1px solid rgba(124,58,237,.2)', borderRadius: '20px', padding: '24px', overflow: 'hidden' }}>
 
           {/* ── GENERATE MODE ── */}
