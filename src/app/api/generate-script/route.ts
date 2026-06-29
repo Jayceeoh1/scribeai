@@ -6,20 +6,12 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   const { 
-    mode, // 'generate' | 'rewrite'
-    // Generate mode
-    title, keywords, language, duration, style, niche,
-    // Rewrite mode
+    mode, title, keywords, language, duration, style, niche,
     transcript, videoTitle, targetLanguage,
   } = await req.json()
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY lipsă' }, { status: 500 })
-  }
-
-  const wordCount: Record<number,string> = {
-    1:'130-150', 3:'390-450', 5:'650-750', 7:'900-1050',
-    10:'1300-1500', 15:'1950-2250', 20:'2600-3000', 25:'3250-3750'
   }
 
   const styleGuide: Record<string,string> = {
@@ -33,13 +25,31 @@ export async function POST(req: NextRequest) {
 
   let prompt = ''
 
+  const wordCount: Record<number,string> = {
+    1:'130-150', 3:'390-450', 5:'650-750', 7:'900-1050',
+    10:'1300-1500', 15:'1950-2250', 20:'2600-3000', 25:'3250-3750'
+  }
+
+  const styleGuideMap: Record<string,string> = {
+    educational: 'educativ și informativ, explicații clare, exemple concrete',
+    entertaining: 'distractiv și energic, umor, storytelling captivant',
+    motivational: 'motivațional și inspirațional, povești de succes, call to action puternic',
+    documentary: 'documentar, narativ, facts și statistici, ton serios',
+    tutorial: 'tutorial pas cu pas, instrucțiuni clare, demonstrații practice',
+    vlog: 'vlog personal, conversațional, autentic, relatable',
+  }
+
   if (mode === 'rewrite') {
+    const words = wordCount[duration as number] || '650-750'
+    const styleDesc = styleGuideMap[style] || 'natural și captivant'
     prompt = `Ești un expert SEO și scriptwriter YouTube cu milioane de vizualizări generate. Analizează și rescrie complet acest transcript.
 
 TRANSCRIPT ORIGINAL (video: "${videoTitle}"):
 ${transcript.slice(0, 6000)}
 
 LIMBĂ OUTPUT: ${targetLanguage || 'Română'}
+DURATĂ ȚINTĂ: ${duration || 5} minute (~${words} cuvinte)
+STIL: ${styleDesc}
 
 TASK: Rescrie complet conținutul păstrând ACEEAȘI temă, concluzie și valoare principală, dar cu:
 - Cuvinte complet diferite

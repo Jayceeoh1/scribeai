@@ -57,7 +57,16 @@ const GEN_STYLES = [
 ]
 const GEN_DURATIONS = [1,3,5,7,10,15,20,25]
 const GEN_NICHES = ['Tech & AI','Business','Health','Education','Entertainment','Travel','Food','Gaming','Music','Marketing']
-const GEN_LANGS = ['Română','English','Français','Español','Deutsch','Italiano','Português','Русский','中文','日本語','한국어']
+const GEN_LANGS = [
+  'Română','English','Français','Español','Deutsch','Italiano','Português (BR)','Português (PT)',
+  'Русский','Українська','Polski','Čeština','Slovenčina','Magyar','Română','Български','Hrvatski','Srpski','Slovenščina',
+  'Nederlands','Svenska','Dansk','Norsk','Suomi','Eesti','Latviešu','Lietuvių',
+  '中文 (简体)','中文 (繁體)','日本語','한국어','Tiếng Việt','ภาษาไทย','Bahasa Indonesia','Bahasa Melayu','Filipino',
+  'العربية','فارسی','עברית','Türkçe','Ελληνικά',
+  'हिन्दी','বাংলা','తెలుగు','मराठी','தமிழ்','اردو','Gujarati','Punjabi',
+  'Swahili','Hausa','Amharic','Afrikaans',
+  'Georgian','Armenian','Azerbaijani','Kazakh','Uzbek',
+]
 
 const GEN_OUTPUT_SECTIONS = [
   {key:'ANALIZA',label:'🔍 Analiză Original',color:'#A78BFA',bg:'rgba(167,139,250,.06)',border:'rgba(167,139,250,.2)'},
@@ -427,6 +436,40 @@ export default function Tool({ session }: { session: any }) {
                         </div>
                       </div>
                     </>
+                  )}
+
+                  {/* Durată și Stil pentru Rewrite */}
+                  {genMode==='rewrite' && (
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
+                      <div>
+                        <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'7px'}}>Durată output: <span style={{color:'var(--gold)',fontWeight:700}}>{genDuration}m</span></label>
+                        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'4px'}}>
+                          {GEN_DURATIONS.map(d=>(
+                            <button key={d} type="button" onClick={()=>setGenDuration(d)}
+                              style={{padding:'7px 4px',borderRadius:'7px',fontSize:'11px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',
+                                background:genDuration===d?'var(--goldbg)':'var(--surface)',
+                                border:`1px solid ${genDuration===d?'var(--goldbdr)':'var(--border)'}`,
+                                color:genDuration===d?'var(--gold)':'var(--text3)'}}>
+                              {d}m
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'7px'}}>Stil output</label>
+                        <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'4px'}}>
+                          {GEN_STYLES.map(s=>(
+                            <button key={s.key} type="button" onClick={()=>setGenStyle(s.key)}
+                              style={{padding:'6px 4px',borderRadius:'7px',fontSize:'10px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',
+                                background:genStyle===s.key?'var(--goldbg)':'var(--surface)',
+                                border:`1px solid ${genStyle===s.key?'var(--goldbdr)':'var(--border)'}`,
+                                color:genStyle===s.key?'var(--gold)':'var(--text3)'}}>
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   )}
 
                   {/* Limbă (ambele moduri) */}
