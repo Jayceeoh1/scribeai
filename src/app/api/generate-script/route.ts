@@ -244,5 +244,31 @@ Top 3 titluri finale recomandate cu explicație SEO și CTR:`
     }), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
   }
 
+  // Grok
+  if (provider === 'grok') {
+    if (!process.env.GROK_API_KEY) return NextResponse.json({ error: 'GROK_API_KEY lipsă' }, { status: 500 })
+    const res = await fetch('https://api.x.ai/v1/chat/completions', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${process.env.GROK_API_KEY}`},
+      body: JSON.stringify({ model: model || 'grok-2-latest', max_tokens:4096, stream:true, messages:[{role:'user',content:prompt}] })
+    })
+    if (!res.ok || !res.body) return NextResponse.json({ error: `Grok error ${res.status}` }, { status: 500 })
+    return new Response(new ReadableStream({
+      async start(controller) {
+        const enc = new TextEncoder(); const reader = res.body!.getReader(); const decoder = new TextDecoder(); let buf = ''
+        while (true) {
+          const { done, value } = await reader.read(); if (done) break
+          buf += decoder.decode(value, { stream: true })
+          const lines = buf.split('\n'); buf = lines.pop() ?? ''
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+            const json = line.slice(6).trim(); if (!json || json === '[DONE]') continue
+            try { const obj = JSON.parse(json); const text = obj?.choices?.[0]?.delta?.content ?? ''; if (text) controller.enqueue(enc.encode(text)) } catch {}
+          }
+        }
+        controller.close()
+      }
+    }), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+  }
+
   return NextResponse.json({ error: 'Provider necunoscut' }, { status: 400 })
 }
