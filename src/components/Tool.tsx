@@ -378,39 +378,70 @@ export default function Tool({ session }: { session: any }) {
 
   const inp:React.CSSProperties={width:'100%',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:'10px',padding:'12px 14px',color:'var(--text)',fontSize:'14px',fontFamily:'Inter,sans-serif',outline:'none',transition:'border-color .2s'}
 
+  const genStarStyle: React.CSSProperties = { animation: 'spin 4s linear infinite', display: 'inline-block' }
+
   return (
-    <div style={{display:'grid',gridTemplateColumns:'1fr 260px',gap:'18px',maxWidth:'1080px',margin:'0 auto',padding:'24px 20px 80px',alignItems:'start'}}>
+    <div style={{ background: '#040507', minHeight: '100vh', position: 'relative', overflowX: 'hidden',
+      ['--bg' as any]: '#07090F',
+      ['--bg2' as any]: '#0A0C14',
+      ['--surface' as any]: 'rgba(255,255,255,0.04)',
+      ['--surface2' as any]: 'rgba(255,255,255,0.06)',
+      ['--border' as any]: 'rgba(255,255,255,0.08)',
+      ['--border2' as any]: 'rgba(255,255,255,0.14)',
+      ['--violet' as any]: '#8B5CF6',
+      ['--violet2' as any]: '#7C3AED',
+      ['--indigo' as any]: '#6366F1',
+      ['--gold' as any]: '#F0C444',
+      ['--gold2' as any]: '#C8A030',
+      ['--goldbg' as any]: 'rgba(240,196,68,0.08)',
+      ['--goldbdr' as any]: 'rgba(240,196,68,0.28)',
+      ['--teal' as any]: '#2DD4BF',
+      ['--tealbg' as any]: 'rgba(45,212,191,0.08)',
+      ['--tealbdr' as any]: 'rgba(45,212,191,0.28)',
+      ['--green' as any]: '#34D399',
+      ['--red' as any]: '#F87171',
+      ['--text' as any]: '#EEEEF2',
+      ['--text2' as any]: 'rgba(238,238,242,0.55)',
+      ['--text3' as any]: 'rgba(238,238,242,0.28)',
+    }}>
+      {/* Ambient bg */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,.022) 1px, transparent 1px)', backgroundSize: '30px 30px', WebkitMaskImage: 'radial-gradient(ellipse 70% 55% at 50% 30%, black, transparent)' }}/>
+        <div style={{ position: 'absolute', width: '600px', height: '400px', borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(124,58,237,.1) 0%, transparent 70%)', top: '-80px', left: '50%', transform: 'translateX(-50%)' }}/>
+      </div>
 
-      {/* ── LEFT ── */}
-      <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: '680px', margin: '0 auto', padding: '24px 20px 100px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-        {/* Mode tabs */}
-        <div style={{display:'flex',gap:'4px',padding:'4px',background:'rgba(255,255,255,0.04)',borderRadius:'12px',border:'1px solid var(--border)'}}>
-          {MODES.map(m=>{
-            const active=mode===m.key
-            const locked=m.badge==='PRO'&&!isPro
+        {/* Mode tabs — pill row */}
+        <div style={{ display: 'flex', gap: '4px', padding: '4px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '100px', overflowX: 'auto' }}>
+          {MODES.map(m => {
+            const active = mode === m.key
+            const locked = m.badge === 'PRO' && !isPro
             return (
               <button key={m.key} type="button" disabled={isLoading}
-                onClick={()=>{if(locked){window.location.href='/pricing';return}setMode(m.key);reset();setGenOutput('')}}
-                style={{flex:1,padding:'10px 6px',borderRadius:'9px',cursor:'pointer',transition:'all .2s',outline:'none',
-                  background:active?'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(99,102,241,0.1))':'transparent',
-                  border:active?'1px solid rgba(139,92,246,0.35)':'1px solid transparent',
-                  textAlign:'center',opacity:locked?.6:1,position:'relative'}}>
-                {locked&&<span style={{position:'absolute',top:'4px',right:'4px',fontSize:'10px'}}>🔒</span>}
-                <div style={{fontSize:'16px',color:active?'var(--violet)':'var(--text3)',marginBottom:'3px'}}>{m.icon}</div>
-                <div style={{fontSize:'11px',fontWeight:700,color:active?'var(--text)':'var(--text3)'}}>{m.label}</div>
-                <div style={{fontSize:'9px',fontWeight:700,marginTop:'3px',padding:'1px 6px',borderRadius:'100px',display:'inline-block',
-                  color:m.badge==='PRO'?'var(--gold)':'var(--teal)',
-                  background:m.badge==='PRO'?'var(--goldbg)':'var(--tealbg)',
-                  border:`1px solid ${m.badge==='PRO'?'var(--goldbdr)':'var(--tealbdr)'}`}}>{m.badge}</div>
+                onClick={() => { if (locked) { window.location.href = '/pricing'; return } setMode(m.key); reset(); setGenOutput('') }}
+                style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 14px', borderRadius: '100px', cursor: 'pointer', transition: 'all .2s', outline: 'none', whiteSpace: 'nowrap', flexShrink: 0,
+                  background: active ? '#7C3AED' : 'transparent',
+                  border: 'none',
+                  color: active ? '#fff' : 'rgba(255,255,255,.38)',
+                  boxShadow: active ? '0 0 18px rgba(124,58,237,.4)' : 'none',
+                  opacity: locked ? .55 : 1, fontFamily: 'Inter,sans-serif', fontSize: '12px', fontWeight: 700 }}>
+                {locked && <span style={{ fontSize: '9px' }}>🔒</span>}
+                <span>{m.icon}</span>
+                <span>{m.label}</span>
+                <span style={{ fontSize: '8px', fontWeight: 700, padding: '1px 5px', borderRadius: '3px',
+                  color: m.badge === 'PRO' ? '#F59E0B' : '#0CCFB0',
+                  background: m.badge === 'PRO' ? 'rgba(245,158,11,.15)' : 'rgba(12,207,176,.15)' }}>{m.badge}</span>
               </button>
             )
           })}
         </div>
 
         {/* Main card */}
-        <div style={{background:'var(--bg2)',border:'1px solid rgba(139,92,246,0.15)',borderRadius:'18px',padding:'24px',position:'relative',overflow:'hidden'}}>
-          <div style={{position:'absolute',top:0,left:0,right:0,height:'1px',background:'linear-gradient(90deg,transparent,rgba(139,92,246,0.4),rgba(240,196,68,0.3),transparent)'}}/>
+        <div style={{ position: 'relative' }}>
+          <div style={{ position: 'absolute', inset: '-1px', borderRadius: '21px', background: 'linear-gradient(135deg,rgba(124,58,237,.3),rgba(12,207,176,.07),rgba(124,58,237,.12))', animation: 'spin 8s linear infinite', zIndex: 0 }}/>
+          <div style={{ position: 'relative', zIndex: 1, background: '#0A0C14', border: '1px solid rgba(124,58,237,.2)', borderRadius: '20px', padding: '24px', overflow: 'hidden' }}>
 
           {/* ── GENERATE MODE ── */}
           {isGenerate && (
@@ -839,22 +870,25 @@ export default function Tool({ session }: { session: any }) {
               </div>
             )}
 
-            {/* Submit */}
-            <button type="submit" disabled={isLoading||!url}
-              style={{width:'100%',padding:'14px',borderRadius:'10px',border:'none',cursor:isLoading||!url?'not-allowed':'pointer',
-                fontSize:'15px',fontWeight:700,fontFamily:'Inter,sans-serif',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',
-                background:isLoading||!url?'rgba(139,92,246,0.12)':'linear-gradient(135deg,var(--violet2),var(--indigo))',
-                color:isLoading||!url?'var(--text3)':'white',
-                boxShadow:isLoading||!url?'none':'0 4px 20px rgba(139,92,246,0.3)',position:'relative',overflow:'hidden'}}>
-              {!isLoading&&!!url&&<span style={{position:'absolute',top:0,left:0,right:0,height:'1px',background:'rgba(255,255,255,.2)'}}/>}
-              {isLoading?<><Spin/>{status}</>:<>
-                <span>{mode==='extract'?'▶':mode==='translate'?'✦':mode==='trello'?'⬡':'↓'}</span>
-                {mode==='extract'&&'Extrage scriptul'}
-                {mode==='translate'&&`Traduce în ${targetLang.label}`}
-                {mode==='trello'&&'Procesează și urcă pe Trello'}
-                {mode==='download'&&`Descarcă ${dlFormat.label}`}
-              </>}
-            </button>
+            {/* Submit — pill premium */}
+            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '4px' }}>
+              <button type="submit" disabled={isLoading||!url}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '13px 32px', borderRadius: '100px', border: 'none', cursor: isLoading||!url ? 'not-allowed' : 'pointer',
+                  fontSize: '14px', fontWeight: 800, fontFamily: 'Inter,sans-serif',
+                  background: isLoading||!url ? 'rgba(124,58,237,.12)' : 'linear-gradient(135deg,#7C3AED,#6D28D9)',
+                  color: isLoading||!url ? 'rgba(255,255,255,.3)' : 'white',
+                  boxShadow: isLoading||!url ? 'none' : '0 0 28px rgba(124,58,237,.45)',
+                  position: 'relative', overflow: 'hidden', transition: 'all .2s' }}>
+                {!isLoading&&!!url&&<span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg,rgba(255,255,255,.1),transparent)', borderRadius: '100px' }}/>}
+                {isLoading ? <><Spin/>{status}</> : <>
+                  <span style={genStarStyle}>✦</span>
+                  {mode==='extract'&&'Extrage scriptul'}
+                  {mode==='translate'&&`Traduce în ${targetLang.label}`}
+                  {mode==='trello'&&'Procesează și urcă pe Trello'}
+                  {mode==='download'&&`Descarcă ${dlFormat.label}`}
+                </>}
+              </button>
+            </div>
           </form>
 
           {/* Progress steps */}
@@ -883,7 +917,8 @@ export default function Tool({ session }: { session: any }) {
               <button onClick={reset} style={{marginTop:'7px',color:'#F87171',fontSize:'11px',background:'none',border:'none',cursor:'pointer',padding:0,textDecoration:'underline'}}>Încearcă din nou</button>
             </div>
           )}
-        </div>
+          </div>{/* end card inner */}
+        </div>{/* end card wrap */}
 
         {/* Download progress */}
         {step==='downloading'&&dlBytes>0&&(
@@ -900,13 +935,14 @@ export default function Tool({ session }: { session: any }) {
 
         {/* Preview transcript/traducere */}
         {preview&&(
-          <div style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'16px',overflow:'hidden'}}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',borderBottom:'1px solid var(--border)'}}>
-              <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
-                <span style={{fontSize:'10px',fontWeight:600,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--text3)'}}>
+          <div style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '16px', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#0CCFB0', display: 'inline-block', boxShadow: '0 0 6px rgba(12,207,176,.6)' }}/>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,.45)', textTransform: 'uppercase', letterSpacing: '.08em' }}>
                   {mode==='extract'?'Transcript':`Tradus — ${targetLang.label}`}
                 </span>
-                {detectedLang&&<span style={{fontSize:'10px',color:'var(--text3)',background:'var(--surface2)',padding:'2px 7px',borderRadius:'100px'}}>sursă: {detectedLang}</span>}
+                {detectedLang&&<span style={{ fontSize: '10px', color: 'rgba(255,255,255,.3)', background: 'rgba(255,255,255,.05)', padding: '2px 8px', borderRadius: '100px' }}>sursă: {detectedLang}</span>}
               </div>
               <div style={{display:'flex',gap:'5px',flexWrap:'wrap'}}>
                 <button onClick={()=>{navigator.clipboard.writeText(preview);setCopied(true);setTimeout(()=>setCopied(false),2000)}}
@@ -1167,12 +1203,12 @@ export default function Tool({ session }: { session: any }) {
         )}
       </div>
 
-      {/* ── SIDEBAR ── */}
-      <div style={{display:'flex',flexDirection:'column',gap:'12px',position:'sticky',top:'76px'}}>
+        {/* ── SIDEBAR / EXTRAS ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
         {/* User card */}
-        <div style={{background:'var(--bg2)',border:'1px solid rgba(139,92,246,0.2)',borderRadius:'16px',padding:'16px',position:'relative',overflow:'hidden'}}>
-          <div style={{position:'absolute',top:0,left:0,right:0,height:'1px',background:'linear-gradient(90deg,transparent,rgba(139,92,246,0.5),rgba(240,196,68,0.4),transparent)'}}/>
+        <div style={{ background: 'rgba(124,58,237,.06)', border: '1px solid rgba(124,58,237,.2)', borderRadius: '16px', padding: '16px', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg,transparent,rgba(124,58,237,.6),rgba(12,207,176,.3),transparent)' }}/>
           <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'14px'}}>
             {session?.user?.image
               ? <img src={session.user.image} alt="" style={{width:'36px',height:'36px',borderRadius:'50%',border:'2px solid rgba(139,92,246,.4)'}}/>
@@ -1199,8 +1235,8 @@ export default function Tool({ session }: { session: any }) {
         </div>
 
         {/* Istoric recent */}
-        <div style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'16px',padding:'16px'}}>
-          <p style={{fontSize:'10px',fontWeight:600,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'10px'}}>Istoric recent</p>
+        <div style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '16px', padding: '16px' }}>
+          <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.3)', marginBottom: '10px' }}>Istoric recent</p>
           {history.length===0
             ? <p style={{fontSize:'12px',color:'var(--text3)',textAlign:'center',padding:'12px 0'}}>Nicio procesare încă</p>
             : <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
@@ -1238,6 +1274,7 @@ export default function Tool({ session }: { session: any }) {
           {['Transcript → Traduce → Trello în 3 click-uri','Script AI generează titluri SEO optimizate','Rescrie din URL = conținut nou din videoclipuri existente','Prompt custom = control total asupra outputului'].map(t=>(
             <p key={t} style={{fontSize:'11px',color:'var(--text2)',lineHeight:1.5,marginBottom:'5px'}}>· {t}</p>
           ))}
+        </div>
         </div>
       </div>
     </div>
