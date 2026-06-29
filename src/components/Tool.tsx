@@ -1043,10 +1043,22 @@ export default function Tool({ session }: { session: any }) {
                       <span style={{fontSize:'11px',padding:'3px 9px',borderRadius:'100px',background:'rgba(240,196,68,.1)',border:'1px solid var(--goldbdr)',color:'var(--gold)',fontWeight:600}}>{t.emotion}</span>
                     </div>
                     <div style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:'8px'}}>
-                      <div style={{padding:'10px 12px',background:'rgba(0,0,0,.4)',borderRadius:'8px',textAlign:'center'}}>
-                        <p style={{fontSize:'22px',fontWeight:900,color:'white',margin:'0 0 3px',letterSpacing:'-.02em',textShadow:'0 2px 8px rgba(0,0,0,.8)'}}>{t.hook}</p>
-                        {t.subtext&&<p style={{fontSize:'12px',color:'rgba(255,255,255,.6)',margin:0}}>{t.subtext}</p>}
-                      </div>
+                      {/* Imagine generată de Replicate */}
+                      {t.imageUrl ? (
+                        <div style={{borderRadius:'8px',overflow:'hidden',border:'1px solid rgba(255,255,255,.1)',position:'relative'}}>
+                          <img src={t.imageUrl} alt={t.hook} style={{width:'100%',display:'block',borderRadius:'8px'}}/>
+                          <a href={t.imageUrl} download={`thumbnail-${i+1}.jpg`} target="_blank" rel="noopener noreferrer"
+                            style={{position:'absolute',bottom:'8px',right:'8px',padding:'5px 10px',borderRadius:'6px',background:'rgba(0,0,0,.7)',color:'white',fontSize:'11px',fontWeight:600,textDecoration:'none',border:'1px solid rgba(255,255,255,.2)'}}>
+                            ↓ Download
+                          </a>
+                        </div>
+                      ) : (
+                        <div style={{padding:'10px 12px',background:'rgba(0,0,0,.4)',borderRadius:'8px',textAlign:'center'}}>
+                          <p style={{fontSize:'22px',fontWeight:900,color:'white',margin:'0 0 3px',letterSpacing:'-.02em',textShadow:'0 2px 8px rgba(0,0,0,.8)'}}>{t.hook}</p>
+                          {t.subtext&&<p style={{fontSize:'12px',color:'rgba(255,255,255,.6)',margin:0}}>{t.subtext}</p>}
+                          {t.imageError&&<p style={{fontSize:'10px',color:'rgba(248,113,113,.7)',marginTop:'4px'}}>{t.imageError}</p>}
+                        </div>
+                      )}
                       <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
                         <span style={{fontSize:'11px',color:'var(--text3)'}}>Culori:</span>
                         {(t.colorPalette||[]).map((c:string,j:number)=>(
@@ -1076,9 +1088,14 @@ export default function Tool({ session }: { session: any }) {
                         <p style={{fontSize:'11px',color:'var(--text3)',margin:0,lineHeight:1.4,fontStyle:'italic'}}>{t.adobePrompt}</p>
                       </div>
                       <p style={{fontSize:'11px',color:'var(--text3)',margin:0}}>🔤 {t.font} · CTA: {t.ctaElement}</p>
+                      {t.imageUrl&&<p style={{fontSize:'10px',color:'var(--green)',margin:0}}>✓ Generat cu Flux 1.1 Pro</p>}
                     </div>
                   </div>
                 ))}
+                {thumbnail.imagesGenerated&&<div style={{padding:'8px 12px',background:'rgba(52,211,153,.08)',border:'1px solid rgba(52,211,153,.25)',borderRadius:'8px',marginBottom:'4px',display:'flex',alignItems:'center',gap:'8px'}}>
+                  <span style={{fontSize:'16px'}}>🎨</span>
+                  <p style={{fontSize:'12px',color:'var(--green)',fontWeight:600,margin:0}}>Thumbnailuri generate cu Flux 1.1 Pro — descarcă-le direct!</p>
+                </div>}
                 {thumbnail.generalTips&&<div style={{padding:'10px 12px',background:'rgba(52,211,153,.05)',border:'1px solid rgba(52,211,153,.2)',borderRadius:'9px'}}>
                   <p style={{fontSize:'10px',fontWeight:700,color:'var(--green)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:'6px'}}>✅ Tips</p>
                   {thumbnail.generalTips.map((tip:string,i:number)=><p key={i} style={{fontSize:'11px',color:'var(--text2)',margin:'0 0 3px'}}>· {tip}</p>)}
