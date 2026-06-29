@@ -88,6 +88,31 @@ export async function POST(req: NextRequest) {
       const data = await res.json()
       const text = data?.choices?.[0]?.message?.content ?? ''
       return new NextResponse(text, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+
+    } else if (provider === 'grok') {
+      if (!process.env.GROK_API_KEY) throw new Error('GROK_API_KEY lipsă')
+      console.log('Grok request model:', model)
+      const grokRes = await fetch('https://api.x.ai/v1/responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.GROK_API_KEY}` },
+        body: JSON.stringify({
+          model: model || 'grok-4.3',
+          input: [
+            { role: 'system', content: 'You are a helpful AI assistant.' },
+            { role: 'user', content: prompt }
+          ]
+        }),
+      })
+      console.log('Grok response status:', grokRes.status)
+      if (!grokRes.ok) {
+        const err = await grokRes.text()
+        console.error('Grok error:', err.slice(0, 500))
+        throw new Error(`Grok error ${grokRes.status}: ${err.slice(0, 200)}`)
+      }
+      const grokData = await grokRes.json()
+      const grokText = grokData?.output?.[0]?.content?.[0]?.text ?? grokData?.output ?? ''
+      if (!grokText) throw new Error('Grok a returnat text gol')
+      return new NextResponse(grokText, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
     }
 
     throw new Error('Provider necunoscut')
