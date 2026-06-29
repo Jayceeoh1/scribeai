@@ -126,6 +126,8 @@ export default function Tool({ session }: { session: any }) {
   const [genStyle, setGenStyle]       = useState('educational')
   const [genNiche, setGenNiche]       = useState('')
   const [genRewriteUrl, setGenRewriteUrl] = useState('')
+  const [genAiProvider, setGenAiProvider] = useState(AI_PROVIDERS[0])
+  const [genAiModel, setGenAiModel]       = useState(AI_PROVIDERS[0].models[0])
   const [genLoading, setGenLoading]   = useState(false)
   const [genOutput, setGenOutput]     = useState('')
   const [genCopied, setGenCopied]     = useState('')
@@ -217,7 +219,7 @@ export default function Tool({ session }: { session: any }) {
       const res=await fetch('/api/generate-script',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify(genMode==='rewrite'
           ?{mode:'rewrite',transcript,videoTitle:rewriteTitle,targetLanguage:genLanguage}
-          :{mode:'generate',title:genTitle,keywords:genKeywords,language:genLanguage,duration:genDuration,style:genStyle,niche:genNiche}
+          :{mode:'generate',title:genTitle,keywords:genKeywords,language:genLanguage,duration:genDuration,style:genStyle,niche:genNiche,aiProvider:genAiProvider.key,aiModel:genAiModel.key}
         )})
       if (!res.ok||!res.body){setGenOutput('Eroare la generare.');setGenLoading(false);return}
       const reader=res.body.getReader(); const decoder=new TextDecoder(); let full=''
@@ -437,6 +439,27 @@ export default function Tool({ session }: { session: any }) {
                       </div>
                     </>
                   )}
+
+                  {/* AI Provider pentru ambele moduri */}
+                  <div>
+                    <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'8px'}}>Model AI</label>
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'5px',marginBottom:'7px'}}>
+                      {AI_PROVIDERS.map(p=>(
+                        <button key={p.key} type="button" onClick={()=>{setGenAiProvider(p);setGenAiModel(p.models[0])}}
+                          style={{padding:'8px 6px',borderRadius:'8px',border:`1px solid ${genAiProvider.key===p.key?p.color+'55':'var(--border)'}`,background:genAiProvider.key===p.key?`${p.color}12`:'var(--surface)',cursor:'pointer',fontSize:'11px',fontWeight:700,color:genAiProvider.key===p.key?p.color:'var(--text3)',textAlign:'center'}}>
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{display:'flex',gap:'5px',flexWrap:'wrap'}}>
+                      {genAiProvider.models.map(m=>(
+                        <button key={m.key} type="button" onClick={()=>setGenAiModel(m)}
+                          style={{padding:'5px 10px',borderRadius:'6px',border:`1px solid ${genAiModel.key===m.key?genAiProvider.color+'55':'var(--border)'}`,background:genAiModel.key===m.key?`${genAiProvider.color}10`:'var(--surface)',cursor:'pointer',fontSize:'11px',fontWeight:600,color:genAiModel.key===m.key?genAiProvider.color:'var(--text3)'}}>
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* Durată și Stil pentru Rewrite */}
                   {genMode==='rewrite' && (

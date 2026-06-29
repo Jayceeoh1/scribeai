@@ -8,6 +8,7 @@ export async function POST(req: NextRequest) {
   const { 
     mode, title, keywords, language, duration, style, niche,
     transcript, videoTitle, targetLanguage,
+    aiProvider, aiModel,
   } = await req.json()
 
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -174,26 +175,74 @@ Generează în ${language} EXACT în acest format:
 Top 3 titluri finale recomandate cu explicație SEO și CTR:`
   }
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  
-  const stream = await client.messages.stream({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
-    messages: [{ role: 'user', content: prompt }],
-  })
+  const provider = aiProvider || 'claude'
+  const model = aiModel || 'claude-sonnet-4-6'
 
-  return new Response(
-    new ReadableStream({
+  // Claude
+  if (provider === 'claude') {
+    if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json({ error: 'ANTHROPIC_API_KEY lipsă' }, { status: 500 })
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const stream = await client.messages.stream({ model, max_tokens: 4096, messages: [{ role: 'user', content: prompt }] })
+    return new Response(new ReadableStream({
       async start(controller) {
         const enc = new TextEncoder()
         for await (const chunk of stream) {
-          if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
-            controller.enqueue(enc.encode(chunk.delta.text))
+          if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') controller.enqueue(enc.encode(chunk.delta.text))
+        }
+        controller.close()
+      }
+    }), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+  }
+
+  // Gemini
+  if (provider === 'gemini') {
+    if (!process.env.GEMINI_API_KEY) return NextResponse.json({ error: 'GEMINI_API_KEY lipsă' }, { status: 500 })
+    const gemModel = model || 'gemini-2.0-flash'
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${gemModel}:streamGenerateContent?key=${process.env.GEMINI_API_KEY}&alt=sse`
+    const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{maxOutputTokens:4096} }) })
+    if (!res.ok || !res.body) return NextResponse.json({ error: `Gemini error ${res.status}` }, { status: 500 })
+    return new Response(new ReadableStream({
+      async start(controller) {
+        const enc = new TextEncoder(); const reader = res.body!.getReader(); const decoder = new TextDecoder(); let buf = ''
+        while (true) {
+          const { done, value } = await reader.read(); if (done) break
+          buf += decoder.decode(value, { stream: true })
+          const lines = buf.split('\n'); buf = lines.pop() ?? ''
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue
+            const json = line.slice(6).trim(); if (!json || json === "[DONE]") continue
+            try { const obj = JSON.parse(json); const text = obj?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''; if (text) controller.enqueue(enc.encode(text)) } catch {}
           }
         }
         controller.close()
       }
-    }),
-    { headers: { 'Content-Type': 'text/plain; charset=utf-8' } }
-  )
+    }), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+  }
+
+  // OpenAI / DeepSeek
+  if (provider === 'openai' || provider === 'deepseek') {
+    const apiKey = provider === 'openai' ? process.env.OPENAI_API_KEY : process.env.DEEPSEEK_API_KEY
+    const baseURL = provider === 'openai' ? 'https://api.openai.com/v1' : 'https://api.deepseek.com/v1'
+    if (!apiKey) return NextResponse.json({ error: `${provider.toUpperCase()}_API_KEY lipsă` }, { status: 500 })
+    const res = await fetch(`${baseURL}/chat/completions`, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`}, body: JSON.stringify({ model, max_tokens:4096, stream:true, messages:[{role:'user',content:prompt}] }) })
+    if (!res.ok || !res.body) return NextResponse.json({ error: `API error ${res.status}` }, { status: 500 })
+    return new Response(new ReadableStream({
+      async start(controller) {
+        const enc = new TextEncoder(); const reader = res.body!.getReader(); const decoder = new TextDecoder(); let buf = ''
+        while (true) {
+          const { done, value } = await reader.read(); if (done) break
+          buf += decoder.decode(value, { stream: true })
+          const lines = buf.split('\n'); buf = lines.pop() ?? ''
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue
+            const json = line.slice(6).trim(); if (!json || json === "[DONE]") continue
+            try { const obj = JSON.parse(json); const text = obj?.choices?.[0]?.delta?.content ?? ''; if (text) controller.enqueue(enc.encode(text)) } catch {}
+          }
+        }
+        controller.close()
+      }
+    }), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+  }
+
+  return NextResponse.json({ error: 'Provider necunoscut' }, { status: 400 })
 }
