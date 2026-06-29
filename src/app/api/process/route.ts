@@ -50,13 +50,20 @@ export async function POST(req: NextRequest) {
           generationConfig: { maxOutputTokens: 4096 }
         }),
       })
+      console.log('Gemini request model:', geminiModel)
       if (!gemRes.ok) {
         const errText = await gemRes.text()
+        console.error('Gemini error:', gemRes.status, errText.slice(0, 500))
         throw new Error(`Gemini error ${gemRes.status}: ${errText.slice(0, 200)}`)
       }
       const gemData = await gemRes.json()
+      console.log('Gemini response keys:', Object.keys(gemData))
       const gemText = gemData?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-      if (!gemText) throw new Error('Gemini a returnat text gol')
+      console.log('Gemini text length:', gemText.length)
+      if (!gemText) {
+        console.error('Gemini full response:', JSON.stringify(gemData).slice(0, 500))
+        throw new Error('Gemini a returnat text gol')
+      }
       return new NextResponse(gemText, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
 
     } else if (provider === 'openai') {
