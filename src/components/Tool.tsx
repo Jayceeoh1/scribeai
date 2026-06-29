@@ -395,8 +395,12 @@ export default function Tool({ session }: { session: any }) {
   }, [])
 
   useEffect(() => {
-    const activeBtn = tabsRef.current?.querySelector('[data-active="true"]') as HTMLButtonElement
-    if (activeBtn) updatePill(activeBtn)
+    // mic delay ca DOM-ul să se actualizeze cu noul tab activ
+    const id = requestAnimationFrame(() => {
+      const activeBtn = tabsRef.current?.querySelector('[data-active="true"]') as HTMLButtonElement
+      if (activeBtn) updatePill(activeBtn)
+    })
+    return () => cancelAnimationFrame(id)
   }, [mode, updatePill])
 
   return (
@@ -443,7 +447,6 @@ export default function Tool({ session }: { session: any }) {
             return (
               <button key={m.key} type="button" disabled={isLoading}
                 data-active={active ? 'true' : 'false'}
-                ref={active ? (el) => { if (el) updatePill(el) } : undefined}
                 onClick={(e) => {
                   if (locked) { window.location.href = '/pricing'; return }
                   updatePill(e.currentTarget)
