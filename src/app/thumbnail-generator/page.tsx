@@ -47,6 +47,11 @@ export default function ThumbnailGenerator() {
   const [textPos, setTextPos] = useState('bottom-center')
   const [bgOverlay, setBgOverlay] = useState(true)
 
+  // Inspiratie
+  const [inspireImages, setInspireImages] = useState<string[]>([])
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analysisResult, setAnalysisResult] = useState<any>(null)
+
   // Results
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<{url: string, canvas?: string}[]>([])
@@ -160,6 +165,42 @@ export default function ThumbnailGenerator() {
       setFinalImages(prev => { const n = [...prev]; n[selectedResult] = imageUrl; return n })
     }
     img.src = imageUrl
+  }
+
+  async function handleInspireUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    const base64s: string[] = []
+    for (const file of files.slice(0, 2)) {
+      const b64 = await new Promise<string>((res) => {
+        const reader = new FileReader()
+        reader.onload = () => res(reader.result as string)
+        reader.readAsDataURL(file)
+      })
+      base64s.push(b64)
+    }
+    setInspireImages(base64s)
+    setAnalysisResult(null)
+  }
+
+  async function analyzeInspiration() {
+    if (!inspireImages.length) return
+    setAnalyzing(true)
+    try {
+      const res = await fetch('/api/analyze-thumbnail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: inspireImages, hookText, niche, style })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setAnalysisResult(data)
+      if (data.fluxPrompt) setPrompt(data.fluxPrompt)
+      if (data.suggestedTextColor) setTextColor(data.suggestedTextColor)
+    } catch(e: any) {
+      setError(e.message)
+    }
+    setAnalyzing(false)
   }
 
   async function generateThumbnails() {
@@ -398,6 +439,66 @@ export default function ThumbnailGenerator() {
                   </label>
                 </div>
               </div>
+            </div>
+
+            {/* Inspiratie vizuala */}
+            <div style={{ background:'var(--bg2)', border:'1px solid rgba(52,211,153,.15)', borderRadius:'14px', padding:'16px', position:'relative', overflow:'hidden' }}>
+              <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:'linear-gradient(90deg,transparent,rgba(52,211,153,.5),transparent)' }}/>
+              <p style={{ fontSize:'11px', fontWeight:700, color:'var(--green)', textTransform:'uppercase', letterSpacing:'.08em', margin:'0 0 10px' }}>🎯 Inspirație vizuală</p>
+              <p style={{ fontSize:'12px', color:'var(--text3)', margin:'0 0 10px', lineHeight:1.5 }}>
+                Încarcă 1-2 thumbnail-uri de referință și Claude le analizează automat pentru a genera un prompt perfect.
+              </p>
+
+              {/* Upload zone */}
+              <label style={{ display:'block', padding:'16px', border:'2px dashed rgba(52,211,153,.3)', borderRadius:'10px', cursor:'pointer', textAlign:'center', marginBottom:'10px', background:'rgba(52,211,153,.03)' }}>
+                <input type="file" accept="image/*" multiple onChange={handleInspireUpload} style={{ display:'none' }}/>
+                {inspireImages.length > 0 ? (
+                  <div style={{ display:'flex', gap:'8px', justifyContent:'center' }}>
+                    {inspireImages.map((img, i) => (
+                      <img key={i} src={img} alt={`Inspirație ${i+1}`} style={{ height:'60px', borderRadius:'6px', objectFit:'cover', border:'1px solid rgba(52,211,153,.3)' }}/>
+                    ))}
+                  </div>
+                ) : (
+                  <div>
+                    <p style={{ fontSize:'24px', margin:'0 0 4px' }}>📁</p>
+                    <p style={{ fontSize:'12px', color:'var(--text3)', margin:0 }}>Click pentru a încărca thumbnail-uri (max 2)</p>
+                  </div>
+                )}
+              </label>
+
+              {inspireImages.length > 0 && (
+                <div style={{ display:'flex', gap:'6px' }}>
+                  <button onClick={analyzeInspiration} disabled={analyzing}
+                    style={{ flex:1, padding:'9px', borderRadius:'8px', border:'none', cursor:analyzing?'not-allowed':'pointer', fontFamily:'Inter,sans-serif', fontSize:'12px', fontWeight:700,
+                      background:analyzing?'var(--surface)':'linear-gradient(135deg,#059669,#10B981)',
+                      color:analyzing?'var(--text3)':'white', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px' }}>
+                    {analyzing
+                      ? <><svg className="spin" width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,.2)" strokeWidth="3"/><path d="M12 2a10 10 0 0 1 10 10" stroke="white" strokeWidth="3" strokeLinecap="round"/></svg>Analizez...</>
+                      : '🔍 Analizează cu Claude'}
+                  </button>
+                  <button onClick={()=>{setInspireImages([]);setAnalysisResult(null)}}
+                    style={{ padding:'9px 12px', borderRadius:'8px', background:'var(--surface)', border:'1px solid var(--border)', color:'var(--text3)', cursor:'pointer', fontFamily:'Inter,sans-serif', fontSize:'12px' }}>
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              {analysisResult && (
+                <div style={{ marginTop:'10px', padding:'10px 12px', background:'rgba(52,211,153,.06)', border:'1px solid rgba(52,211,153,.2)', borderRadius:'9px' }}>
+                  <p style={{ fontSize:'11px', fontWeight:700, color:'var(--green)', margin:'0 0 6px' }}>✓ Analiză completă — promptul a fost setat automat!</p>
+                  <p style={{ fontSize:'11px', color:'var(--text3)', margin:'0 0 4px' }}>🎨 Stil: {analysisResult.style}</p>
+                  <p style={{ fontSize:'11px', color:'var(--text3)', margin:'0 0 6px' }}>📐 Compoziție: {analysisResult.composition}</p>
+                  {analysisResult.colorPalette && (
+                    <div style={{ display:'flex', alignItems:'center', gap:'5px' }}>
+                      <span style={{ fontSize:'10px', color:'var(--text3)' }}>Culori:</span>
+                      {analysisResult.colorPalette.map((c: string, i: number) => (
+                        <div key={i} style={{ width:'18px', height:'18px', borderRadius:'4px', background:c, border:'1px solid rgba(255,255,255,.1)' }}/>
+                      ))}
+                    </div>
+                  )}
+                  {analysisResult.tips && <p style={{ fontSize:'11px', color:'var(--text2)', margin:'6px 0 0', fontStyle:'italic' }}>💡 {analysisResult.tips}</p>}
+                </div>
+              )}
             </div>
 
             {/* Idei */}
