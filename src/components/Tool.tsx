@@ -435,7 +435,7 @@ export default function Tool({ session }: { session: any }) {
                       {genMode==='rewrite'?'Limbă output':'Limbă script'}
                     </label>
                     <select value={genLanguage} onChange={e=>setGenLanguage(e.target.value)}
-                      style={{...inp,cursor:'pointer',colorScheme:'dark'}}>
+                      style={{...inp,cursor:'pointer',colorScheme:'dark',background:'#0C0C18',color:'var(--text)'}}>
                       {GEN_LANGS.map(l=><option key={l} value={l}>{l}</option>)}
                     </select>
                   </div>
