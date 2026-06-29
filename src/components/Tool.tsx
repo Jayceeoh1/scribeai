@@ -29,7 +29,7 @@ const DL_FORMATS = [
 const AI_PROVIDERS = [
   {key:'claude',label:'Claude',color:'#D97757',models:[{key:'claude-sonnet-4-6',label:'Sonnet 4.6'},{key:'claude-opus-4-6',label:'Opus 4.6'},{key:'claude-haiku-4-5-20251001',label:'Haiku 4.5'}]},
   {key:'openai',label:'ChatGPT',color:'#10A37F',models:[{key:'gpt-4o',label:'GPT-4o'},{key:'gpt-4o-mini',label:'GPT-4o Mini'}]},
-  {key:'gemini',label:'Gemini',color:'#4285F4',models:[{key:'gemini-2.0-flash',label:'2.0 Flash'},{key:'gemini-1.5-pro',label:'1.5 Pro'}]},
+  {key:'gemini',label:'Gemini',color:'#4285F4',models:[{key:'gemini-1.5-flash-latest',label:'1.5 Flash'},{key:'gemini-1.5-flash-8b',label:'1.5 Flash 8B'}]},
   {key:'deepseek',label:'DeepSeek',color:'#536DFE',models:[{key:'deepseek-chat',label:'V3'},{key:'deepseek-reasoner',label:'R1'}]},
 ]
 

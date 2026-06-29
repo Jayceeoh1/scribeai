@@ -41,12 +41,7 @@ export async function POST(req: NextRequest) {
     } else if (provider === 'gemini') {
       if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY lipsă')
       // Map model names la versiunile corecte pentru API
-      const modelMap: Record<string,string> = {
-        'gemini-2.0-flash': 'gemini-2.0-flash',
-        'gemini-1.5-pro': 'gemini-1.5-pro-latest',
-        'gemini-1.5-flash': 'gemini-1.5-flash-latest',
-      }
-      const geminiModel = modelMap[aiModel] || 'gemini-2.0-flash'
+      const geminiModel = aiModel || 'gemini-1.5-flash-latest'
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${process.env.GEMINI_API_KEY}`
       const gemRes = await fetch(geminiUrl, {
         method: 'POST',
