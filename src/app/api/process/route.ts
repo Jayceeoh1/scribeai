@@ -40,15 +40,24 @@ export async function POST(req: NextRequest) {
 
     } else if (provider === 'gemini') {
       if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY lipsă')
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`
-      const res = await fetch(url, {
+      const geminiModel = aiModel || 'gemini-2.0-flash'
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${process.env.GEMINI_API_KEY}`
+      const gemRes = await fetch(geminiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        body: JSON.stringify({ 
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 4096 }
+        }),
       })
-      const data = await res.json()
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-      return new NextResponse(text, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+      if (!gemRes.ok) {
+        const errText = await gemRes.text()
+        throw new Error(`Gemini error ${gemRes.status}: ${errText.slice(0, 200)}`)
+      }
+      const gemData = await gemRes.json()
+      const gemText = gemData?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+      if (!gemText) throw new Error('Gemini a returnat text gol')
+      return new NextResponse(gemText, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
 
     } else if (provider === 'openai') {
       if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY lipsă')
