@@ -117,6 +117,14 @@ export default function Tool({ session }: { session: any }) {
   const [history, setHistory]     = useState<any[]>([])
   const [videoInfo, setVideoInfo] = useState<any>(null)
   const [exportLoading, setExportLoading] = useState<string|null>(null)
+  const [shareId, setShareId]   = useState<string|null>(null)
+  const [shareCopied, setShareCopied] = useState(false)
+  // Batch processing
+  const [batchMode, setBatchMode] = useState(false)
+  const [batchUrls, setBatchUrls] = useState(['','',''])
+  const [batchResults, setBatchResults] = useState<any[]>([])
+  const [batchLoading, setBatchLoading] = useState(false)
+  const [batchProgress, setBatchProgress] = useState(0)
   // Script Generator state
   const [genMode, setGenMode]         = useState<'generate'|'rewrite'>('generate')
   const [genTitle, setGenTitle]       = useState('')
@@ -182,6 +190,39 @@ export default function Tool({ session }: { session: any }) {
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fileName; a.click()
     } catch(e){console.error(e)}
     setExportLoading(null)
+  }
+
+  async function shareScript(historyId: string, sid: string) {
+    const shareUrl = `${window.location.origin}/share/${sid}`
+    await navigator.clipboard.writeText(shareUrl)
+    setShareCopied(true)
+    setTimeout(() => setShareCopied(false), 3000)
+  }
+
+  async function processBatch() {
+    if (!isPro) return
+    const validUrls = batchUrls.filter(u => u.trim())
+    if (validUrls.length === 0) return
+    setBatchLoading(true); setBatchResults([]); setBatchProgress(0)
+    const results = []
+    for (let i = 0; i < validUrls.length; i++) {
+      try {
+        setBatchProgress(i + 1)
+        const tRes = await fetch('/api/transcript', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: validUrls[i] }) })
+        const tData = await tRes.json()
+        if (!tRes.ok) { results.push({ url: validUrls[i], error: tData.error, title: validUrls[i] }); continue }
+        const pRes = await fetch('/api/process', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ rawText: tData.rawText, detectedLang: tData.detectedLang, targetLang: targetLang.label, title: tData.title, aiProvider: aiProvider.key, aiModel: aiModel.key }) })
+        if (!pRes.ok || !pRes.body) { results.push({ url: validUrls[i], error: 'Eroare procesare', title: tData.title }); continue }
+        const reader = pRes.body.getReader(); const decoder = new TextDecoder(); let text = ''
+        while (true) { const { done, value } = await reader.read(); if (done) break; text += decoder.decode(value, { stream: true }) }
+        const hRes = await fetch('/api/history', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ videoUrl: validUrls[i], videoTitle: tData.title, sourceLang: tData.detectedLang, targetLang: targetLang.label, mode: 'translate', scriptText: text, aiProvider: aiProvider.key, aiModel: aiModel.key }) })
+        const hData = await hRes.json()
+        results.push({ url: validUrls[i], title: tData.title, text, shareId: hData.entry?.shareId })
+      } catch(e) { results.push({ url: validUrls[i], error: `${e}`, title: validUrls[i] }) }
+    }
+    setBatchResults(results); setBatchLoading(false)
   }
 
   async function saveGeneratedScript(output: string) {
@@ -750,6 +791,14 @@ export default function Tool({ session }: { session: any }) {
                   style={{padding:'5px 10px',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.2)',color:'#60A5FA'}}>
                   {exportLoading==='docx'?'..':'↓ .docx'}
                 </button>
+                <button onClick={async()=>{
+                  const hRes=await fetch('/api/history',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({videoUrl:url,videoTitle:videoTitle,videoChannel:videoInfo?.channel,videoDuration:videoInfo?.duration,thumbnail:videoInfo?.thumbnailMq,sourceLang:detectedLang,targetLang:targetLang.label,mode,scriptText:preview,aiProvider:aiProvider.key,aiModel:aiModel.key})})
+                  const hData=await hRes.json()
+                  if(hData.entry?.shareId){const shareUrl=`${window.location.origin}/share/${hData.entry.shareId}`;await navigator.clipboard.writeText(shareUrl);setShareCopied(true);setTimeout(()=>setShareCopied(false),3000)}
+                }}
+                  style={{padding:'5px 10px',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',background:'rgba(240,196,68,.08)',border:'1px solid rgba(240,196,68,.25)',color:'var(--gold)'}}>
+                  {shareCopied?'✓ Link copiat!':'🔗 Share'}
+                </button>
               </div>
             </div>
             <div ref={previewRef} style={{padding:'16px',fontSize:'13px',lineHeight:1.8,color:'var(--text2)',maxHeight:'360px',overflowY:'auto',whiteSpace:'pre-wrap',wordBreak:'break-word'}}>
@@ -884,6 +933,52 @@ export default function Tool({ session }: { session: any }) {
               Dashboard →
             </a>
           </div>
+        </div>
+
+        {/* Batch Processing */}
+        <div style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'14px',padding:'14px'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'10px'}}>
+            <p style={{fontSize:'10px',fontWeight:700,color:'var(--text3)',letterSpacing:'.07em',textTransform:'uppercase',margin:0}}>⚡ Batch (3 video-uri)</p>
+            {!isPro&&<span style={{fontSize:'9px',fontWeight:700,padding:'2px 7px',borderRadius:'100px',background:'var(--goldbg)',border:'1px solid var(--goldbdr)',color:'var(--gold)'}}>PRO</span>}
+          </div>
+          {!isPro ? (
+            <p style={{fontSize:'11px',color:'var(--text3)',marginBottom:'8px'}}>Procesează 3 video-uri simultan. Feature exclusiv Pro.</p>
+          ) : (
+            <>
+              <div style={{display:'flex',flexDirection:'column',gap:'6px',marginBottom:'10px'}}>
+                {batchUrls.map((u,i)=>(
+                  <input key={i} value={u} onChange={e=>{const n=[...batchUrls];n[i]=e.target.value;setBatchUrls(n)}}
+                    placeholder={`URL ${i+1}...`} disabled={batchLoading}
+                    style={{width:'100%',background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'7px',padding:'7px 10px',color:'var(--text)',fontSize:'11px',fontFamily:'Inter,sans-serif',outline:'none'}}
+                    onFocus={e=>e.target.style.borderColor='rgba(139,92,246,.4)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,.08)'}/>
+                ))}
+              </div>
+              <div style={{marginBottom:'8px',fontSize:'11px',color:'var(--text3)'}}>Traduce în: {targetLang.label}</div>
+              <button type="button" onClick={processBatch} disabled={batchLoading||batchUrls.every(u=>!u.trim())}
+                style={{width:'100%',padding:'9px',borderRadius:'8px',border:'none',cursor:'pointer',fontFamily:'Inter,sans-serif',fontSize:'12px',fontWeight:700,
+                  background:batchLoading?'rgba(139,92,246,.1)':'linear-gradient(135deg,var(--violet2),var(--indigo))',
+                  color:batchLoading?'var(--text3)':'white'}}>
+                {batchLoading?`Procesez ${batchProgress}/3...`:'⚡ Procesează toate'}
+              </button>
+              {batchResults.length>0&&(
+                <div style={{marginTop:'10px',display:'flex',flexDirection:'column',gap:'6px'}}>
+                  {batchResults.map((r,i)=>(
+                    <div key={i} style={{padding:'8px 10px',borderRadius:'8px',background:r.error?'rgba(248,113,113,.06)':'rgba(52,211,153,.06)',border:`1px solid ${r.error?'rgba(248,113,113,.2)':'rgba(52,211,153,.2)'}`}}>
+                      <p style={{fontSize:'11px',fontWeight:600,color:r.error?'#FCA5A5':'var(--green)',margin:'0 0 3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.title}</p>
+                      {r.error?<p style={{fontSize:'10px',color:'rgba(248,113,113,.7)',margin:0}}>{r.error}</p>:(
+                        <div style={{display:'flex',gap:'5px',marginTop:'4px'}}>
+                          <button onClick={()=>navigator.clipboard.writeText(r.text)}
+                            style={{padding:'3px 8px',borderRadius:'5px',fontSize:'10px',background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.2)',color:'var(--green)',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>⎘ Copiază</button>
+                          {r.shareId&&<button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/share/${r.shareId}`);setShareCopied(true);setTimeout(()=>setShareCopied(false),2000)}}
+                            style={{padding:'3px 8px',borderRadius:'5px',fontSize:'10px',background:'var(--goldbg)',border:'1px solid var(--goldbdr)',color:'var(--gold)',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>🔗 Share</button>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Tips */}
