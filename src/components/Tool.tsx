@@ -118,10 +118,13 @@ export default function Tool({ session }: { session: any }) {
   const [history, setHistory]     = useState<any[]>([])
   const [videoInfo, setVideoInfo] = useState<any>(null)
   const [exportLoading, setExportLoading] = useState<string|null>(null)
+  const [shareCopied, setShareCopied]     = useState(false)
+  const [chapters, setChapters]           = useState<any>(null)
+  const [chaptersLoading, setChaptersLoading] = useState(false)
+  const [thumbnail, setThumbnail]         = useState<any>(null)
+  const [thumbLoading, setThumbLoading]   = useState(false)
+  const [previewTab, setPreviewTab]       = useState<'script'|'chapters'|'thumbnail'>('script')
   const [shareId, setShareId]   = useState<string|null>(null)
-  const [shareCopied, setShareCopied] = useState(false)
-  // Batch processing
-  const [batchMode, setBatchMode] = useState(false)
   const [batchUrls, setBatchUrls] = useState(['','',''])
   const [batchResults, setBatchResults] = useState<any[]>([])
   const [batchLoading, setBatchLoading] = useState(false)
@@ -224,6 +227,30 @@ export default function Tool({ session }: { session: any }) {
       } catch(e) { results.push({ url: validUrls[i], error: `${e}`, title: validUrls[i] }) }
     }
     setBatchResults(results); setBatchLoading(false)
+  }
+
+  async function generateChapters() {
+    if (!preview) return
+    setChaptersLoading(true); setPreviewTab('chapters')
+    try {
+      const res = await fetch('/api/chapters', {method:'POST',headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({transcript:preview, videoTitle, duration:videoInfo?.duration})})
+      const data = await res.json()
+      if (res.ok) setChapters(data)
+    } catch(e) { console.error(e) }
+    setChaptersLoading(false)
+  }
+
+  async function generateThumbnail() {
+    if (!preview && !videoTitle) return
+    setThumbLoading(true); setPreviewTab('thumbnail')
+    try {
+      const res = await fetch('/api/thumbnail', {method:'POST',headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({script:preview, videoTitle, niche:'', style:'Energic'})})
+      const data = await res.json()
+      if (res.ok) setThumbnail(data)
+    } catch(e) { console.error(e) }
+    setThumbLoading(false)
   }
 
   async function saveGeneratedScript(output: string) {
@@ -702,6 +729,7 @@ export default function Tool({ session }: { session: any }) {
                     <p style={{fontSize:'12px',fontWeight:600,color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:'0 0 2px'}}>{videoInfo.title}</p>
                     <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
                       <span style={{fontSize:'11px',color:'var(--violet)'}}>📺 {videoInfo.channel}</span>
+                      {detectedLang&&step==='done'&&<span style={{fontSize:'10px',fontWeight:600,padding:'2px 7px',borderRadius:'100px',background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.2)',color:'var(--green)'}}>🌐 {detectedLang}</span>}
                       {videoInfo.duration&&<span style={{fontSize:'11px',color:'var(--text3)'}}>⏱ {videoInfo.duration}</span>}
                     </div>
                   </div>
@@ -898,6 +926,13 @@ export default function Tool({ session }: { session: any }) {
                   {exportLoading==='docx'?'..':'↓ .docx'}
                 </button>
                 <button onClick={async()=>{
+                  const r=await fetch('/api/history',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({videoUrl:url,videoTitle,videoChannel:videoInfo?.channel,videoDuration:videoInfo?.duration,thumbnail:videoInfo?.thumbnailMq,sourceLang:detectedLang,targetLang:targetLang.label,mode,scriptText:preview,aiProvider:aiProvider.key,aiModel:aiModel.key})})
+                  const d=await r.json()
+                  if(d.entry?.shareId){await navigator.clipboard.writeText(window.location.origin+'/share/'+d.entry.shareId);setShareCopied(true);setTimeout(()=>setShareCopied(false),3000)}
+                }} style={{padding:'5px 10px',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',background:'rgba(240,196,68,.08)',border:'1px solid rgba(240,196,68,.25)',color:'var(--gold)'}}>
+                  {shareCopied?'✓ Copiat!':'🔗 Share'}
+                </button>
+                <button onClick={async()=>{
                   const hRes=await fetch('/api/history',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({videoUrl:url,videoTitle:videoTitle,videoChannel:videoInfo?.channel,videoDuration:videoInfo?.duration,thumbnail:videoInfo?.thumbnailMq,sourceLang:detectedLang,targetLang:targetLang.label,mode,scriptText:preview,aiProvider:aiProvider.key,aiModel:aiModel.key})})
                   const hData=await hRes.json()
                   if(hData.entry?.shareId){const shareUrl=`${window.location.origin}/share/${hData.entry.shareId}`;await navigator.clipboard.writeText(shareUrl);setShareCopied(true);setTimeout(()=>setShareCopied(false),3000)}
@@ -910,8 +945,146 @@ export default function Tool({ session }: { session: any }) {
             <div ref={previewRef} style={{padding:'16px',fontSize:'13px',lineHeight:1.8,color:'var(--text2)',maxHeight:'360px',overflowY:'auto',whiteSpace:'pre-wrap',wordBreak:'break-word'}}>
               {preview}
             </div>
-            <div style={{padding:'9px 16px',borderTop:'1px solid var(--border)',textAlign:'right'}}>
+            <div style={{padding:'9px 16px',borderTop:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'6px'}}>
               <span style={{fontSize:'11px',color:'var(--text3)'}}>{preview.length.toLocaleString()} caractere · {preview.split(/\s+/).filter(Boolean).length.toLocaleString()} cuvinte</span>
+              <div style={{display:'flex',gap:'5px'}}>
+                <button type="button" onClick={()=>{setPreviewTab('chapters');if(!chapters&&!chaptersLoading)generateChapters()}}
+                  style={{padding:'4px 10px',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',
+                    background:previewTab==='chapters'?'rgba(139,92,246,.15)':'var(--surface)',
+                    border:'1px solid '+(previewTab==='chapters'?'rgba(139,92,246,.4)':'var(--border)'),
+                    color:previewTab==='chapters'?'var(--violet)':'var(--text3)'}}>
+                  {chaptersLoading?'⏳...':'📑 Chapters AI'}
+                </button>
+                <button type="button" onClick={()=>{setPreviewTab('thumbnail');if(!thumbnail&&!thumbLoading)generateThumbnail()}}
+                  style={{padding:'4px 10px',borderRadius:'6px',fontSize:'11px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',
+                    background:previewTab==='thumbnail'?'var(--goldbg)':'var(--surface)',
+                    border:'1px solid '+(previewTab==='thumbnail'?'var(--goldbdr)':'var(--border)'),
+                    color:previewTab==='thumbnail'?'var(--gold)':'var(--text3)'}}>
+                  {thumbLoading?'⏳...':'🖼️ Thumbnail AI'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Chapters panel */}
+        {previewTab==='chapters'&&preview&&(
+          <div style={{background:'var(--bg2)',border:'1px solid rgba(139,92,246,.2)',borderRadius:'16px',overflow:'hidden'}}>
+            <div style={{padding:'12px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <span style={{fontSize:'12px',fontWeight:700,color:'var(--violet)'}}>📑 Chapters AI</span>
+              <button onClick={()=>setPreviewTab('script')} style={{background:'none',border:'none',color:'var(--text3)',cursor:'pointer',fontSize:'16px'}}>✕</button>
+            </div>
+            <div style={{padding:'16px'}}>
+              {chaptersLoading&&<div style={{textAlign:'center',padding:'32px',color:'var(--text3)'}}>
+                <p>Claude analizează transcriptul și creează capitolele...</p>
+              </div>}
+              {chapters&&!chaptersLoading&&(
+                <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
+                  {chapters.summary&&<div style={{padding:'10px 12px',background:'rgba(139,92,246,.06)',border:'1px solid rgba(139,92,246,.15)',borderRadius:'9px'}}>
+                    <p style={{fontSize:'11px',fontWeight:700,color:'var(--violet)',marginBottom:'4px'}}>📋 REZUMAT</p>
+                    <p style={{fontSize:'13px',color:'var(--text2)',lineHeight:1.6,margin:0}}>{chapters.summary}</p>
+                  </div>}
+                  {(chapters.chapters||[]).map((ch:any,i:number)=>(
+                    <div key={i} style={{display:'flex',gap:'10px',padding:'10px 12px',background:'var(--surface)',borderRadius:'9px',border:'1px solid var(--border)'}}>
+                      <div style={{flexShrink:0,textAlign:'center',minWidth:'45px'}}>
+                        <div style={{fontSize:'18px'}}>{ch.emoji}</div>
+                        <span style={{fontSize:'10px',fontWeight:700,color:'var(--violet)',background:'rgba(139,92,246,.1)',padding:'1px 5px',borderRadius:'4px'}}>{ch.timestamp}</span>
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <p style={{fontSize:'13px',fontWeight:700,color:'var(--text)',margin:'0 0 3px'}}>{ch.title}</p>
+                        <p style={{fontSize:'11px',color:'var(--text3)',margin:'0 0 5px',lineHeight:1.4}}>{ch.description}</p>
+                        <div style={{display:'flex',gap:'3px',flexWrap:'wrap'}}>
+                          {(ch.keyPoints||[]).map((kp:string,j:number)=>(
+                            <span key={j} style={{fontSize:'10px',padding:'1px 6px',borderRadius:'100px',background:'var(--surface2)',color:'var(--text3)'}}>· {kp}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{padding:'10px 12px',background:'rgba(255,255,255,.02)',border:'1px solid var(--border)',borderRadius:'9px'}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'6px'}}>
+                      <p style={{fontSize:'11px',fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.07em',margin:0}}>Format YouTube</p>
+                      <button onClick={()=>navigator.clipboard.writeText((chapters.chapters||[]).map((ch:any)=>ch.timestamp+' '+ch.emoji+' '+ch.title).join('\n'))}
+                        style={{padding:'3px 8px',borderRadius:'5px',fontSize:'10px',background:'var(--surface)',border:'1px solid var(--border)',color:'var(--text3)',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>⎘ Copiază</button>
+                    </div>
+                    <pre style={{fontSize:'12px',color:'var(--text2)',margin:0,lineHeight:1.7,whiteSpace:'pre-wrap'}}>{(chapters.chapters||[]).map((ch:any)=>ch.timestamp+' '+ch.emoji+' '+ch.title).join('\n')}</pre>
+                  </div>
+                  {chapters.suggestedTags&&<div style={{display:'flex',gap:'4px',flexWrap:'wrap'}}>
+                    {chapters.suggestedTags.map((tag:string,i:number)=>(
+                      <span key={i} style={{fontSize:'10px',padding:'2px 8px',borderRadius:'100px',background:'var(--goldbg)',border:'1px solid var(--goldbdr)',color:'var(--gold)'}}>#{tag}</span>
+                    ))}
+                  </div>}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Thumbnail panel */}
+        {previewTab==='thumbnail'&&preview&&(
+          <div style={{background:'var(--bg2)',border:'1px solid var(--goldbdr)',borderRadius:'16px',overflow:'hidden'}}>
+            <div style={{padding:'12px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <span style={{fontSize:'12px',fontWeight:700,color:'var(--gold)'}}>🖼️ Thumbnail AI — 3 Concepte</span>
+              <button onClick={()=>setPreviewTab('script')} style={{background:'none',border:'none',color:'var(--text3)',cursor:'pointer',fontSize:'16px'}}>✕</button>
+            </div>
+            <div style={{padding:'16px',display:'flex',flexDirection:'column',gap:'12px'}}>
+              {thumbLoading&&<div style={{textAlign:'center',padding:'32px',color:'var(--text3)'}}>
+                <p>Claude generează conceptele de thumbnail...</p>
+              </div>}
+              {thumbnail&&!thumbLoading&&(
+                <>
+                {(thumbnail.thumbnails||[]).map((t:any,i:number)=>(
+                  <div key={i} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'11px',overflow:'hidden'}}>
+                    <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',background:`linear-gradient(135deg,${(t.colorPalette||[])[0]||'#8B5CF6'}18,transparent)`}}>
+                      <div>
+                        <p style={{fontSize:'10px',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.07em',margin:'0 0 2px'}}>Concept {i+1}</p>
+                        <p style={{fontSize:'13px',fontWeight:700,color:'var(--text)',margin:0}}>{t.concept}</p>
+                      </div>
+                      <span style={{fontSize:'11px',padding:'3px 9px',borderRadius:'100px',background:'rgba(240,196,68,.1)',border:'1px solid var(--goldbdr)',color:'var(--gold)',fontWeight:600}}>{t.emotion}</span>
+                    </div>
+                    <div style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:'8px'}}>
+                      <div style={{padding:'10px 12px',background:'rgba(0,0,0,.4)',borderRadius:'8px',textAlign:'center'}}>
+                        <p style={{fontSize:'22px',fontWeight:900,color:'white',margin:'0 0 3px',letterSpacing:'-.02em',textShadow:'0 2px 8px rgba(0,0,0,.8)'}}>{t.hook}</p>
+                        {t.subtext&&<p style={{fontSize:'12px',color:'rgba(255,255,255,.6)',margin:0}}>{t.subtext}</p>}
+                      </div>
+                      <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+                        <span style={{fontSize:'11px',color:'var(--text3)'}}>Culori:</span>
+                        {(t.colorPalette||[]).map((c:string,j:number)=>(
+                          <div key={j} title={c} onClick={()=>navigator.clipboard.writeText(c)} style={{width:'22px',height:'22px',borderRadius:'4px',background:c,border:'1px solid rgba(255,255,255,.15)',cursor:'pointer'}}/>
+                        ))}
+                        <span style={{fontSize:'10px',color:'var(--text3)'}}>{(t.colorPalette||[]).join(' · ')}</span>
+                      </div>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
+                        <div style={{padding:'7px 9px',background:'rgba(255,255,255,.03)',borderRadius:'7px'}}>
+                          <p style={{fontSize:'9px',fontWeight:700,color:'var(--text3)',textTransform:'uppercase',margin:'0 0 2px'}}>🖼️ Fundal</p>
+                          <p style={{fontSize:'11px',color:'var(--text2)',margin:0,lineHeight:1.4}}>{t.background}</p>
+                        </div>
+                        <div style={{padding:'7px 9px',background:'rgba(255,255,255,.03)',borderRadius:'7px'}}>
+                          <p style={{fontSize:'9px',fontWeight:700,color:'var(--text3)',textTransform:'uppercase',margin:'0 0 2px'}}>👤 Prim plan</p>
+                          <p style={{fontSize:'11px',color:'var(--text2)',margin:0,lineHeight:1.4}}>{t.foreground}</p>
+                        </div>
+                      </div>
+                      <div style={{padding:'7px 9px',background:'rgba(139,92,246,.06)',borderRadius:'7px',border:'1px solid rgba(139,92,246,.15)'}}>
+                        <p style={{fontSize:'9px',fontWeight:700,color:'var(--violet)',textTransform:'uppercase',margin:'0 0 2px'}}>💡 De ce funcționează</p>
+                        <p style={{fontSize:'11px',color:'var(--text2)',margin:0,lineHeight:1.5}}>{t.whyItWorks}</p>
+                      </div>
+                      <div style={{padding:'7px 9px',background:'var(--goldbg)',borderRadius:'7px',border:'1px solid var(--goldbdr)'}}>
+                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'3px'}}>
+                          <p style={{fontSize:'9px',fontWeight:700,color:'var(--gold)',textTransform:'uppercase',margin:0}}>🤖 Prompt AI Image</p>
+                          <button onClick={()=>navigator.clipboard.writeText(t.adobePrompt||'')} style={{padding:'2px 7px',borderRadius:'4px',fontSize:'10px',background:'rgba(240,196,68,.15)',border:'1px solid var(--goldbdr)',color:'var(--gold)',cursor:'pointer',fontFamily:'Inter,sans-serif'}}>⎘</button>
+                        </div>
+                        <p style={{fontSize:'11px',color:'var(--text3)',margin:0,lineHeight:1.4,fontStyle:'italic'}}>{t.adobePrompt}</p>
+                      </div>
+                      <p style={{fontSize:'11px',color:'var(--text3)',margin:0}}>🔤 {t.font} · CTA: {t.ctaElement}</p>
+                    </div>
+                  </div>
+                ))}
+                {thumbnail.generalTips&&<div style={{padding:'10px 12px',background:'rgba(52,211,153,.05)',border:'1px solid rgba(52,211,153,.2)',borderRadius:'9px'}}>
+                  <p style={{fontSize:'10px',fontWeight:700,color:'var(--green)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:'6px'}}>✅ Tips</p>
+                  {thumbnail.generalTips.map((tip:string,i:number)=><p key={i} style={{fontSize:'11px',color:'var(--text2)',margin:'0 0 3px'}}>· {tip}</p>)}
+                </div>}
+                </>
+              )}
             </div>
           </div>
         )}
