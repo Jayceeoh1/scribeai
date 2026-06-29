@@ -31,7 +31,7 @@ const AI_PROVIDERS = [
   {key:'openai',label:'ChatGPT',color:'#10A37F',models:[{key:'gpt-4o',label:'GPT-4o'},{key:'gpt-4o-mini',label:'GPT-4o Mini'}]},
   {key:'gemini',label:'Gemini',color:'#4285F4',models:[{key:'gemini-1.5-flash-latest',label:'1.5 Flash'},{key:'gemini-1.5-flash-8b',label:'1.5 Flash 8B'}]},
   {key:'deepseek',label:'DeepSeek',color:'#536DFE',models:[{key:'deepseek-chat',label:'V3'},{key:'deepseek-reasoner',label:'R1'}]},
-  {key:'grok',label:'Grok',color:'#1DA1F2',models:[{key:'grok-2-latest',label:'Grok 2'},{key:'grok-2-mini',label:'Grok Mini'}]},
+  {key:'grok',label:'Grok',color:'#1DA1F2',models:[{key:'grok-3-latest',label:'Grok 3'},{key:'grok-3-mini-latest',label:'Grok 3 Mini'},{key:'grok-2-latest',label:'Grok 2'}]},
 ]
 
 const MODES = [
