@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const { rawText, detectedLang, targetLang, title, aiProvider, aiModel, customPrompt } = await req.json()
   const prompt   = buildPrompt(title, detectedLang, targetLang, rawText, customPrompt)
   const provider = aiProvider ?? 'claude'
-  const model    = 'claude-haiku-4-5-20251001' // Haiku - cel mai rapid
+  const model    = aiModel || 'claude-haiku-4-5-20251001'
 
   try {
     if (provider === 'claude') {
