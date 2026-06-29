@@ -110,8 +110,30 @@ export async function POST(req: NextRequest) {
         throw new Error(`Grok error ${grokRes.status}: ${err.slice(0, 200)}`)
       }
       const grokData = await grokRes.json()
-      const grokText = grokData?.output?.[0]?.content?.[0]?.text ?? grokData?.output ?? ''
-      if (!grokText) throw new Error('Grok a returnat text gol')
+      console.log('Grok output type:', typeof grokData?.output, JSON.stringify(grokData).slice(0, 300))
+      
+      let grokText = ''
+      if (typeof grokData?.output === 'string') {
+        grokText = grokData.output
+      } else if (Array.isArray(grokData?.output)) {
+        // output e array de mesaje
+        for (const item of grokData.output) {
+          if (item?.type === 'message' && Array.isArray(item?.content)) {
+            for (const c of item.content) {
+              if (c?.type === 'output_text' || c?.type === 'text') {
+                grokText += c.text || ''
+              }
+            }
+          } else if (typeof item?.content === 'string') {
+            grokText += item.content
+          }
+        }
+      }
+      
+      if (!grokText) {
+        console.error('Grok full response:', JSON.stringify(grokData).slice(0, 1000))
+        throw new Error('Grok a returnat text gol')
+      }
       return new NextResponse(grokText, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
     }
 
