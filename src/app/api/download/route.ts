@@ -17,6 +17,8 @@ function findYtDlp(): string {
     '/usr/local/bin/yt-dlp',
     '/nix/var/nix/profiles/default/bin/yt-dlp',
     '/run/current-system/sw/bin/yt-dlp',
+    '/root/.local/bin/yt-dlp',
+    `${process.env.HOME ?? '/root'}/.local/bin/yt-dlp`,
     process.env.YTDLP_PATH ?? '',
     'yt-dlp',
   ]
@@ -72,7 +74,7 @@ export async function POST(req: NextRequest) {
     })
     proc.stderr.on('data', (d: Buffer) => { stderr += d.toString() })
     proc.on('error', (err) => {
-      resolve(NextResponse.json({ error: `yt-dlp nu este instalat pe server: ${err.message}` }, { status: 500 }))
+      resolve(NextResponse.json({ error: `yt-dlp nu este instalat pe server (${err.message}). Verifică nixpacks.toml și fă un redeploy fără cache pe Railway.` }, { status: 500 }))
     })
     proc.on('close', (code) => {
       if (code !== 0 || !filePath || !fs.existsSync(filePath)) {

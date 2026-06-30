@@ -1,2 +1,11 @@
+# Asigură yt-dlp, ffmpeg și python3 disponibile pentru download video (Tool: Download)
 [phases.setup]
-nixPkgs = ["yt-dlp", "ffmpeg", "python3"]
+nixPkgs = ["...", "yt-dlp", "ffmpeg", "python3"]
+
+# "..." extinde comenzile implicite ale provider-ului Node (npm ci etc.),
+# nu le suprascrie. Adăugăm doar o verificare + fallback pip pentru yt-dlp.
+[phases.install]
+cmds = [
+  "...",
+  "which yt-dlp && echo 'yt-dlp OK' || pip install --break-system-packages yt-dlp"
+]

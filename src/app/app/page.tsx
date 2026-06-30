@@ -1,14 +1,16 @@
 'use client'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 
 const Tool = dynamic(() => import('@/components/Tool'), { ssr: false })
+const HistoryDrawer = dynamic(() => import('@/components/HistoryDrawer'), { ssr: false })
 
 export default function AppPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
@@ -35,6 +37,7 @@ export default function AppPage() {
             {plan==='FREE' && (
               <button onClick={()=>router.push('/pricing')} style={{ padding:'6px 14px', borderRadius:'7px', background:'linear-gradient(135deg,#7C3AED,#6366F1)', color:'white', border:'none', cursor:'pointer', fontSize:'12px', fontWeight:700, fontFamily:'Inter,sans-serif' }}>⚡ Upgrade</button>
             )}
+            <button onClick={()=>setHistoryOpen(true)} style={{ padding:'6px 13px', borderRadius:'7px', background:'rgba(124,58,237,.1)', border:'1px solid rgba(124,58,237,.25)', color:'#A78BFA', cursor:'pointer', fontSize:'12px', fontFamily:'Inter,sans-serif', fontWeight:600 }}>📋 Istoric</button>
             <button onClick={()=>router.push('/script-generator')} style={{ padding:'6px 13px', borderRadius:'7px', background:'var(--goldbg)', border:'1px solid var(--goldbdr)', color:'var(--gold)', cursor:'pointer', fontSize:'12px', fontFamily:'Inter,sans-serif', fontWeight:600 }}>✦ Script AI</button>
             <button onClick={()=>router.push('/thumbnail-generator')} style={{ padding:'6px 13px', borderRadius:'7px', background:'rgba(240,196,68,.08)', border:'1px solid rgba(240,196,68,.2)', color:'var(--gold)', cursor:'pointer', fontSize:'12px', fontFamily:'Inter,sans-serif', fontWeight:600 }}>🖼️ Thumbnails</button>
             <button onClick={()=>router.push('/dashboard')} style={{ padding:'6px 13px', borderRadius:'7px', background:'rgba(255,255,255,.05)', border:'1px solid rgba(255,255,255,.08)', color:'rgba(255,255,255,.5)', cursor:'pointer', fontSize:'12px', fontFamily:'Inter,sans-serif' }}>Dashboard</button>
@@ -49,6 +52,7 @@ export default function AppPage() {
         </div>
       </nav>
       <Tool session={session}/>
+      <HistoryDrawer open={historyOpen} onClose={()=>setHistoryOpen(false)}/>
     </div>
   )
 }

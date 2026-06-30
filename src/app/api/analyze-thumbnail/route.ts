@@ -30,14 +30,19 @@ Răspunde DOAR cu JSON valid fără markdown:
     // Încearcă Claude Vision (preferat)
     if (process.env.ANTHROPIC_API_KEY) {
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-      const imageContent = images.map((img: string) => ({
-        type: 'image' as const,
-        source: {
-          type: 'base64' as const,
-          media_type: img.includes('png') ? 'image/png' as const : 'image/jpeg' as const,
-          data: img.split(',')[1],
+      const imageContent = images.map((img: string) => {
+        // Extragem media_type real din prefixul data URI: "data:image/jpeg;base64,..."
+        const match = img.match(/^data:(image\/[a-zA-Z+.-]+);base64,/)
+        const mediaType = (match?.[1] || 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
+        return {
+          type: 'image' as const,
+          source: {
+            type: 'base64' as const,
+            media_type: mediaType,
+            data: img.split(',')[1],
+          }
         }
-      }))
+      })
 
       const response = await client.messages.create({
         model: 'claude-sonnet-4-6',

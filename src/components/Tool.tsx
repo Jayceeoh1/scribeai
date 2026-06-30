@@ -116,7 +116,6 @@ export default function Tool({ session }: { session: any }) {
   const [dlBytes, setDlBytes]     = useState(0)
   const [dlTotal, setDlTotal]     = useState(0)
   const [dlProgress, setDlProgress] = useState('')
-  const [history, setHistory]     = useState<any[]>([])
   const [videoInfo, setVideoInfo] = useState<any>(null)
   const [exportLoading, setExportLoading] = useState<string|null>(null)
   const [shareCopied, setShareCopied]     = useState(false)
@@ -151,10 +150,6 @@ export default function Tool({ session }: { session: any }) {
   const plan = session?.user?.plan || 'FREE'
   const isPro = plan === 'PRO' || plan === 'ENTERPRISE'
   const videosUsed = (session?.user as any)?.videosUsed || 0
-
-  useEffect(() => {
-    fetch('/api/history').then(r=>r.json()).then(d=>setHistory((d.history||[]).slice(0,5))).catch(()=>{})
-  }, [step, genOutput])
 
   useEffect(() => {
     const id = extractYtId(url)
@@ -1260,40 +1255,6 @@ export default function Tool({ session }: { session: any }) {
               ⚡ Upgrade la Pro — $19/lună
             </a>
           )}
-        </div>
-
-        {/* Istoric recent */}
-        <div style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '16px', padding: '16px' }}>
-          <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.3)', marginBottom: '10px' }}>Istoric recent</p>
-          {history.length===0
-            ? <p style={{fontSize:'12px',color:'var(--text3)',textAlign:'center',padding:'12px 0'}}>Nicio procesare încă</p>
-            : <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
-                {history.map((h:any)=>{
-                  const modeColors: Record<string,string>={extract:'var(--teal)',translate:'var(--violet)',trello:'#38BDF8',download:'#F472B6',generate:'var(--gold)'}
-                  const modeIcons: Record<string,string>={extract:'▶',translate:'✦',trello:'⬡',download:'↓',generate:'✦'}
-                  return (
-                    <a key={h.id} href={h.videoUrl?.startsWith('generated:')?'#':h.videoUrl} target={h.videoUrl?.startsWith('generated:')?'_self':'_blank'} rel="noopener noreferrer"
-                      style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 9px',borderRadius:'8px',background:'var(--surface)',border:'1px solid var(--border)',textDecoration:'none',transition:'border-color .15s'}}
-                      onMouseEnter={e=>(e.currentTarget.style.borderColor='rgba(139,92,246,.3)')}
-                      onMouseLeave={e=>(e.currentTarget.style.borderColor='var(--border)')}>
-                      <span style={{fontSize:'13px',flexShrink:0,color:modeColors[h.mode]||'var(--text3)'}}>{modeIcons[h.mode]||'•'}</span>
-                      <div style={{flex:1,minWidth:0}}>
-                        <p style={{fontSize:'11px',color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:'1px'}}>{h.videoTitle}</p>
-                        <p style={{fontSize:'9px',color:'var(--text3)'}}>{h.targetLang} · {new Date(h.createdAt).toLocaleDateString('ro-RO')}</p>
-                      </div>
-                    </a>
-                  )
-                })}
-              </div>
-          }
-          <div style={{display:'flex',gap:'6px',marginTop:'10px'}}>
-            <a href="/history" style={{flex:1,display:'block',textAlign:'center',fontSize:'11px',color:'var(--violet)',textDecoration:'none',padding:'7px',borderRadius:'7px',border:'1px solid rgba(139,92,246,.25)',background:'rgba(139,92,246,.06)'}}>
-              📋 Istoric complet
-            </a>
-            <a href="/dashboard" style={{flex:1,display:'block',textAlign:'center',fontSize:'11px',color:'var(--text3)',textDecoration:'none',padding:'7px',borderRadius:'7px',border:'1px solid var(--border)'}}>
-              Dashboard →
-            </a>
-          </div>
         </div>
 
         {/* Tips */}
