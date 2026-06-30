@@ -437,8 +437,9 @@ export default function Tool({ session }: { session: any }) {
       <div style={{ position: 'relative', zIndex: 1, maxWidth: '680px', margin: '0 auto', padding: '24px 20px 100px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-        {/* Mode tabs — sliding pill */}
-        <div ref={tabsRef} style={{ display: 'flex', gap: '4px', padding: '4px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '100px', overflowX: 'auto', position: 'relative' }}>
+        {/* Mode tabs — sliding pill, scroll fără bară urâtă */}
+        <div style={{ position: 'relative' }}>
+          <div ref={tabsRef} className="tabs-scroll" style={{ display: 'flex', gap: '4px', padding: '4px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '100px', overflowX: 'auto', position: 'relative', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {/* Pill slider */}
           <div style={{ position: 'absolute', top: '4px', bottom: '4px', left: pillStyle.left, width: pillStyle.width, background: '#7C3AED', borderRadius: '100px', transition: 'left .3s cubic-bezier(.4,0,.2,1), width .3s cubic-bezier(.4,0,.2,1)', boxShadow: '0 0 18px rgba(124,58,237,.45)', pointerEvents: 'none', zIndex: 0 }}/>
           {MODES.map(m => {
@@ -467,6 +468,10 @@ export default function Tool({ session }: { session: any }) {
               </button>
             )
           })}
+          </div>
+          {/* Fade edges — sugerează scroll fără bară urâtă */}
+          <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '24px', background: 'linear-gradient(90deg, #040507, transparent)', pointerEvents: 'none', borderRadius: '100px 0 0 100px' }}/>
+          <div style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: '24px', background: 'linear-gradient(270deg, #040507, transparent)', pointerEvents: 'none', borderRadius: '0 100px 100px 0' }}/>
         </div>
 
         {/* Main card */}
@@ -489,15 +494,17 @@ export default function Tool({ session }: { session: any }) {
                   {/* Mode switcher */}
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px',padding:'4px',background:'var(--surface)',borderRadius:'10px',border:'1px solid var(--border)'}}>
                     <button type="button" onClick={()=>{setGenMode('generate');setGenOutput('')}}
-                      style={{padding:'9px',borderRadius:'8px',fontSize:'12px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',border:'none',
-                        background:genMode==='generate'?'linear-gradient(135deg,var(--violet2),var(--indigo))':'transparent',
-                        color:genMode==='generate'?'white':'var(--text3)'}}>
+                      style={{padding:'9px',borderRadius:'100px',fontSize:'12px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',border:'none',
+                        background:genMode==='generate'?'#7C3AED':'transparent',
+                        color:genMode==='generate'?'#fff':'rgba(255,255,255,.4)',
+                        boxShadow:genMode==='generate'?'0 0 18px rgba(124,58,237,.45)':'none',transition:'all .2s'}}>
                       ✦ Generează din zero
                     </button>
                     <button type="button" onClick={()=>{setGenMode('rewrite');setGenOutput('')}}
-                      style={{padding:'9px',borderRadius:'8px',fontSize:'12px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',border:'none',
-                        background:genMode==='rewrite'?'linear-gradient(135deg,var(--gold2),var(--gold))':'transparent',
-                        color:genMode==='rewrite'?'#0A0800':'var(--text3)'}}>
+                      style={{padding:'9px',borderRadius:'100px',fontSize:'12px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',border:'none',
+                        background:genMode==='rewrite'?'#F0C444':'transparent',
+                        color:genMode==='rewrite'?'#0A0800':'rgba(255,255,255,.4)',
+                        boxShadow:genMode==='rewrite'?'0 0 18px rgba(240,196,68,.4)':'none',transition:'all .2s'}}>
                       🔄 Rescrie din URL
                     </button>
                   </div>
@@ -532,10 +539,8 @@ export default function Tool({ session }: { session: any }) {
                           <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'4px'}}>
                             {GEN_DURATIONS.map(d=>(
                               <button key={d} type="button" onClick={()=>setGenDuration(d)}
-                                style={{padding:'7px 4px',borderRadius:'7px',fontSize:'11px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',
-                                  background:genDuration===d?'var(--goldbg)':'var(--surface)',
-                                  border:`1px solid ${genDuration===d?'var(--goldbdr)':'var(--border)'}`,
-                                  color:genDuration===d?'var(--gold)':'var(--text3)'}}>
+                                style={{padding:'7px 4px',borderRadius:'100px',border:'none',fontSize:'11px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',
+                                  background:genDuration===d?'#F0C444':'rgba(255,255,255,.05)',boxShadow:genDuration===d?'0 0 12px rgba(240,196,68,.45)':'none',transition:'all .2s',color:genDuration===d?'#0A0800':'rgba(255,255,255,.4)'}}>
                                 {d}m
                               </button>
                             ))}
@@ -546,10 +551,8 @@ export default function Tool({ session }: { session: any }) {
                           <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'4px'}}>
                             {GEN_STYLES.map(s=>(
                               <button key={s.key} type="button" onClick={()=>setGenStyle(s.key)}
-                                style={{padding:'6px 4px',borderRadius:'7px',fontSize:'10px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',
-                                  background:genStyle===s.key?'var(--goldbg)':'var(--surface)',
-                                  border:`1px solid ${genStyle===s.key?'var(--goldbdr)':'var(--border)'}`,
-                                  color:genStyle===s.key?'var(--gold)':'var(--text3)'}}>
+                                style={{padding:'6px 4px',borderRadius:'100px',border:'none',fontSize:'10px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',
+                                  background:genStyle===s.key?'#F0C444':'rgba(255,255,255,.05)',boxShadow:genStyle===s.key?'0 0 12px rgba(240,196,68,.45)':'none',transition:'all .2s',color:genStyle===s.key?'#0A0800':'rgba(255,255,255,.4)'}}>
                                 {s.label}
                               </button>
                             ))}
@@ -561,10 +564,8 @@ export default function Tool({ session }: { session: any }) {
                         <div style={{display:'flex',gap:'4px',flexWrap:'wrap'}}>
                           {GEN_NICHES.map(n=>(
                             <button key={n} type="button" onClick={()=>setGenNiche(genNiche===n?'':n)}
-                              style={{padding:'4px 9px',borderRadius:'6px',fontSize:'11px',fontWeight:500,cursor:'pointer',fontFamily:'Inter,sans-serif',
-                                background:genNiche===n?'var(--goldbg)':'var(--surface)',
-                                border:`1px solid ${genNiche===n?'var(--goldbdr)':'var(--border)'}`,
-                                color:genNiche===n?'var(--gold)':'var(--text3)'}}>
+                              style={{padding:'4px 9px',borderRadius:'100px',border:'none',fontSize:'11px',fontWeight:500,cursor:'pointer',fontFamily:'Inter,sans-serif',
+                                background:genNiche===n?'#F0C444':'rgba(255,255,255,.05)',boxShadow:genNiche===n?'0 0 12px rgba(240,196,68,.45)':'none',transition:'all .2s',color:genNiche===n?'#0A0800':'rgba(255,255,255,.4)'}}>
                               {n}
                             </button>
                           ))}
@@ -579,7 +580,7 @@ export default function Tool({ session }: { session: any }) {
                     <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'5px',marginBottom:'7px'}}>
                       {AI_PROVIDERS.map(p=>(
                         <button key={p.key} type="button" onClick={()=>{setGenAiProvider(p);setGenAiModel(p.models[0])}}
-                          style={{padding:'8px 6px',borderRadius:'8px',border:`1px solid ${genAiProvider.key===p.key?p.color+'55':'var(--border)'}`,background:genAiProvider.key===p.key?`${p.color}12`:'var(--surface)',cursor:'pointer',fontSize:'11px',fontWeight:700,color:genAiProvider.key===p.key?p.color:'var(--text3)',textAlign:'center'}}>
+                          style={{padding:'8px 6px',borderRadius:'100px',border:'none',background:genAiProvider.key===p.key?p.color:'rgba(255,255,255,.05)',cursor:'pointer',fontSize:'11px',fontWeight:700,color:genAiProvider.key===p.key?'#0A0A0F':'rgba(255,255,255,.4)',textAlign:'center',boxShadow:genAiProvider.key===p.key?`0 0 16px ${p.color}66`:'none',transition:'all .2s'}}>
                           {p.label}
                         </button>
                       ))}
@@ -587,7 +588,7 @@ export default function Tool({ session }: { session: any }) {
                     <div style={{display:'flex',gap:'5px',flexWrap:'wrap'}}>
                       {genAiProvider.models.map(m=>(
                         <button key={m.key} type="button" onClick={()=>setGenAiModel(m)}
-                          style={{padding:'5px 10px',borderRadius:'6px',border:`1px solid ${genAiModel.key===m.key?genAiProvider.color+'55':'var(--border)'}`,background:genAiModel.key===m.key?`${genAiProvider.color}10`:'var(--surface)',cursor:'pointer',fontSize:'11px',fontWeight:600,color:genAiModel.key===m.key?genAiProvider.color:'var(--text3)'}}>
+                          style={{padding:'5px 12px',borderRadius:'100px',border:'none',background:genAiModel.key===m.key?genAiProvider.color:'rgba(255,255,255,.05)',cursor:'pointer',fontSize:'11px',fontWeight:600,color:genAiModel.key===m.key?'#0A0A0F':'rgba(255,255,255,.4)',boxShadow:genAiModel.key===m.key?`0 0 12px ${genAiProvider.color}55`:'none',transition:'all .2s'}}>
                           {m.label}
                         </button>
                       ))}
@@ -602,10 +603,8 @@ export default function Tool({ session }: { session: any }) {
                         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'4px'}}>
                           {GEN_DURATIONS.map(d=>(
                             <button key={d} type="button" onClick={()=>setGenDuration(d)}
-                              style={{padding:'7px 4px',borderRadius:'7px',fontSize:'11px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',
-                                background:genDuration===d?'var(--goldbg)':'var(--surface)',
-                                border:`1px solid ${genDuration===d?'var(--goldbdr)':'var(--border)'}`,
-                                color:genDuration===d?'var(--gold)':'var(--text3)'}}>
+                              style={{padding:'7px 4px',borderRadius:'100px',border:'none',fontSize:'11px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif',
+                                background:genDuration===d?'#F0C444':'rgba(255,255,255,.05)',boxShadow:genDuration===d?'0 0 12px rgba(240,196,68,.45)':'none',transition:'all .2s',color:genDuration===d?'#0A0800':'rgba(255,255,255,.4)'}}>
                               {d}m
                             </button>
                           ))}
@@ -616,10 +615,8 @@ export default function Tool({ session }: { session: any }) {
                         <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'4px'}}>
                           {GEN_STYLES.map(s=>(
                             <button key={s.key} type="button" onClick={()=>setGenStyle(s.key)}
-                              style={{padding:'6px 4px',borderRadius:'7px',fontSize:'10px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',
-                                background:genStyle===s.key?'var(--goldbg)':'var(--surface)',
-                                border:`1px solid ${genStyle===s.key?'var(--goldbdr)':'var(--border)'}`,
-                                color:genStyle===s.key?'var(--gold)':'var(--text3)'}}>
+                              style={{padding:'6px 4px',borderRadius:'100px',border:'none',fontSize:'10px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif',
+                                background:genStyle===s.key?'#F0C444':'rgba(255,255,255,.05)',boxShadow:genStyle===s.key?'0 0 12px rgba(240,196,68,.45)':'none',transition:'all .2s',color:genStyle===s.key?'#0A0800':'rgba(255,255,255,.4)'}}>
                               {s.label}
                             </button>
                           ))}
@@ -715,7 +712,7 @@ export default function Tool({ session }: { session: any }) {
                       <div style={{display:'flex',gap:'4px',flexWrap:'wrap'}}>
                         {AI_PROVIDERS.map(p=>(
                           <button key={p.key} type="button" disabled={batchLoading} onClick={()=>{setAiProvider(p);setAiModel(p.models[0])}}
-                            style={{padding:'6px 10px',borderRadius:'7px',border:`1px solid ${aiProvider.key===p.key?p.color+'55':'var(--border)'}`,background:aiProvider.key===p.key?`${p.color}12`:'var(--surface)',cursor:'pointer',fontSize:'11px',fontWeight:700,color:aiProvider.key===p.key?p.color:'var(--text3)'}}>
+                            style={{padding:'6px 12px',borderRadius:'100px',border:'none',background:aiProvider.key===p.key?p.color:'rgba(255,255,255,.05)',cursor:'pointer',fontSize:'11px',fontWeight:700,color:aiProvider.key===p.key?'#0A0A0F':'rgba(255,255,255,.4)',boxShadow:aiProvider.key===p.key?`0 0 14px ${p.color}66`:'none',transition:'all .2s'}}>
                             {p.label}
                           </button>
                         ))}
@@ -809,7 +806,7 @@ export default function Tool({ session }: { session: any }) {
                 <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'5px',marginBottom:'7px'}}>
                   {AI_PROVIDERS.map(p=>(
                     <button key={p.key} type="button" disabled={isLoading} onClick={()=>{setAiProvider(p);setAiModel(p.models[0])}}
-                      style={{padding:'8px 6px',borderRadius:'8px',border:`1px solid ${aiProvider.key===p.key?p.color+'55':'var(--border)'}`,background:aiProvider.key===p.key?`${p.color}12`:'var(--surface)',cursor:'pointer',fontSize:'11px',fontWeight:700,color:aiProvider.key===p.key?p.color:'var(--text3)',textAlign:'center'}}>
+                      style={{padding:'8px 6px',borderRadius:'100px',border:'none',background:aiProvider.key===p.key?p.color:'rgba(255,255,255,.05)',cursor:'pointer',fontSize:'11px',fontWeight:700,color:aiProvider.key===p.key?'#0A0A0F':'rgba(255,255,255,.4)',textAlign:'center',boxShadow:aiProvider.key===p.key?`0 0 16px ${p.color}66`:'none',transition:'all .2s'}}>
                       {p.label}
                     </button>
                   ))}
@@ -817,7 +814,7 @@ export default function Tool({ session }: { session: any }) {
                 <div style={{display:'flex',gap:'5px',flexWrap:'wrap'}}>
                   {aiProvider.models.map(m=>(
                     <button key={m.key} type="button" disabled={isLoading} onClick={()=>setAiModel(m)}
-                      style={{padding:'5px 10px',borderRadius:'6px',border:`1px solid ${aiModel.key===m.key?aiProvider.color+'55':'var(--border)'}`,background:aiModel.key===m.key?`${aiProvider.color}10`:'var(--surface)',cursor:'pointer',fontSize:'11px',fontWeight:600,color:aiModel.key===m.key?aiProvider.color:'var(--text3)'}}>
+                      style={{padding:'5px 12px',borderRadius:'100px',border:'none',background:aiModel.key===m.key?aiProvider.color:'rgba(255,255,255,.05)',cursor:'pointer',fontSize:'11px',fontWeight:600,color:aiModel.key===m.key?'#0A0A0F':'rgba(255,255,255,.4)',boxShadow:aiModel.key===m.key?`0 0 12px ${aiProvider.color}55`:'none',transition:'all .2s'}}>
                       {m.label}
                     </button>
                   ))}
@@ -892,9 +889,9 @@ export default function Tool({ session }: { session: any }) {
                 <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'6px'}}>
                   {DL_FORMATS.map(f=>(
                     <button key={f.key} type="button" onClick={()=>setDlFormat(f)}
-                      style={{padding:'10px 6px',borderRadius:'9px',border:`1px solid ${dlFormat.key===f.key?'var(--goldbdr)':'var(--border)'}`,background:dlFormat.key===f.key?'var(--goldbg)':'var(--surface)',cursor:'pointer',textAlign:'center'}}>
+                      style={{padding:'10px 6px',borderRadius:'16px',border:'none',background:dlFormat.key===f.key?'#F0C444':'rgba(255,255,255,.05)',cursor:'pointer',textAlign:'center',boxShadow:dlFormat.key===f.key?'0 0 16px rgba(240,196,68,.45)':'none',transition:'all .2s'}}>
                       <div style={{fontSize:'16px',marginBottom:'3px'}}>{f.icon}</div>
-                      <div style={{fontSize:'10px',fontWeight:700,color:dlFormat.key===f.key?'var(--gold)':'var(--text3)'}}>{f.label}</div>
+                      <div style={{fontSize:'10px',fontWeight:700,color:dlFormat.key===f.key?'#0A0800':'rgba(255,255,255,.4)'}}>{f.label}</div>
                     </button>
                   ))}
                 </div>

@@ -106,3 +106,6 @@ body {
   50%{transform:scale(1.4);opacity:.6}
 }
 .pulse { animation: pulse 2s ease-in-out infinite; }
+/* Tabs scroll — ascunde bara de scroll urâtă */
+.tabs-scroll::-webkit-scrollbar { display: none; }
+.tabs-scroll { -ms-overflow-style: none; scrollbar-width: none; }
