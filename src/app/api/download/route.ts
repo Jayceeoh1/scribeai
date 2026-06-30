@@ -79,11 +79,14 @@ export async function POST(req: NextRequest) {
     fmtArgs = ['-x', '--audio-format', 'mp3', '--audio-quality', '192K']
     mimeType = 'audio/mpeg'
   } else if (format === 'mp4-480') {
-    fmtArgs = ['-f', 'bestvideo[height<=480]+bestaudio/best[height<=480]/best[height<=480]/best', '--merge-output-format', 'mp4']
+    // video-only la rezoluția cerută + cel mai bun audio separat, mergeuite cu ffmpeg.
+    // Fără fallback pe "best" (stream combinat) — acela e limitat de YouTube la 360p/720p
+    // și ar masca silențios eșecul, livrând calitate mult mai mică decât cea cerută.
+    fmtArgs = ['-f', 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio', '--merge-output-format', 'mp4']
   } else if (format === 'mp4-720') {
-    fmtArgs = ['-f', 'bestvideo[height<=720]+bestaudio/best[height<=720]/best[height<=720]/best', '--merge-output-format', 'mp4']
+    fmtArgs = ['-f', 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio', '--merge-output-format', 'mp4']
   } else {
-    fmtArgs = ['-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best[height<=1080]/best', '--merge-output-format', 'mp4']
+    fmtArgs = ['-f', 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio', '--merge-output-format', 'mp4']
   }
 
   const baseArgs = [
@@ -95,12 +98,12 @@ export async function POST(req: NextRequest) {
     url,
   ]
 
-  // YouTube blochează agresiv IP-urile de datacenter (Railway etc.) pe clientul
-  // "web" implicit cu mesajul "Sign in to confirm you're not a bot". Combinăm
-  // clientul mobil (care trece de verificarea anti-bot) cu "web" (care expune
-  // toate rezoluțiile, inclusiv 1080p+) — yt-dlp alege automat cel mai bun
-  // format disponibil dintre toate sursele combinate.
-  const clientCombosToTry = ['android,web', 'ios,web', 'tv_embedded,web', 'web']
+  // Cu PO Token provider (bgutil) rulând local pe :4416, clientul "web" poate
+  // servi acum rezoluții complete (1080p+) chiar de pe IP-uri de datacenter,
+  // pentru că tokenul de proof-of-origin face traficul să pară legitim.
+  // Păstrăm totuși fallback pe clienți mobili dacă serverul PO Token nu
+  // pornește din vreun motiv (build vechi, eroare la boot etc.)
+  const clientCombosToTry = ['web', 'android,web', 'ios,web', 'tv_embedded,web']
 
   let lastError = ''
   let resultPath = ''

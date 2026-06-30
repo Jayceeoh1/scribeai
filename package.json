@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "sh ./start.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
