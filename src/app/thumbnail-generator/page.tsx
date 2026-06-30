@@ -5,16 +5,6 @@ import { useEffect, useState, useRef } from 'react'
 
 const STYLES = ['Dramatic','Minimal','Colorat','Profesional','Gaming','Tutorial','Motivațional','Documentary']
 const NICHES = ['Tech & AI','Business & Finance','Gaming','Education','Entertainment','Fitness & Health','Travel','Food & Cooking','Music','Personal Development','Marketing','Science']
-const FONTS = [
-  { key: 'impact',     label: 'Impact',         css: '"Impact","Arial Black",sans-serif', weight: '900', google: null },
-  { key: 'anton',      label: 'Anton',          css: '"Anton",sans-serif',                weight: '400', google: 'Anton' },
-  { key: 'bebas',      label: 'Bebas Neue',     css: '"Bebas Neue",sans-serif',            weight: '400', google: 'Bebas+Neue' },
-  { key: 'archivo',    label: 'Archivo Black',  css: '"Archivo Black",sans-serif',         weight: '400', google: 'Archivo+Black' },
-  { key: 'montserrat', label: 'Montserrat',     css: '"Montserrat",sans-serif',            weight: '800', google: 'Montserrat:wght@800' },
-  { key: 'poppins',    label: 'Poppins',        css: '"Poppins",sans-serif',               weight: '700', google: 'Poppins:wght@700' },
-  { key: 'oswald',     label: 'Oswald',         css: '"Oswald",sans-serif',                weight: '600', google: 'Oswald:wght@600' },
-  { key: 'inter',      label: 'Inter (subtil)', css: '"Inter",sans-serif',                 weight: '700', google: 'Inter:wght@700' },
-]
 const TEXT_POSITIONS = ['top-left','top-center','top-right','center','bottom-left','bottom-center','bottom-right']
 const TEXT_COLORS = ['#FFFFFF','#FF0000','#FFD700','#00FF00','#FF6B00','#00BFFF','#FF1493','#000000']
 
@@ -37,7 +27,6 @@ function extractYtId(url: string) {
 export default function ThumbnailGenerator() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [mounted, setMounted] = useState(false)
 
   // Form state
@@ -49,14 +38,13 @@ export default function ThumbnailGenerator() {
   const [inspireUrl, setInspireUrl] = useState('')
   const [variants, setVariants] = useState(1)
 
-  // Text overlay
+  // Text overlay — acum textul e generat direct de AI în imagine (prin prompt),
+  // păstrăm doar poziția/culoarea pentru preview-ul live din UI
   const [textColor, setTextColor] = useState('#FFFFFF')
   const [textStroke, setTextStroke] = useState(true)
   const [fontSize, setFontSize] = useState(80)
   const [textPos, setTextPos] = useState('bottom-center')
   const [bgOverlay, setBgOverlay] = useState(true)
-  const [selectedFont, setSelectedFont] = useState(FONTS[1]) // Anton implicit — bold dar elegant
-  const [fontReady, setFontReady] = useState(true) // Impact e system font, gata instant
 
   // Inspiratie
   const [imageProvider, setImageProvider] = useState<'replicate'|'grok'>('replicate')
@@ -70,25 +58,11 @@ export default function ThumbnailGenerator() {
   const [error, setError] = useState('')
   const [thumbsUsed, setThumbsUsed] = useState(0)
   const [selectedResult, setSelectedResult] = useState(0)
-  const [finalImages, setFinalImages] = useState<string[]>([])
 
   const FREE_LIMIT = 3
 
   useEffect(() => { setMounted(true) }, [])
   useEffect(() => { if (status === 'unauthenticated') router.push('/login') }, [status, router])
-
-  // Preload toate fonturile o singură dată — selectarea ulterioară devine instant
-  useEffect(() => {
-    const families = FONTS.filter(f => f.google).map(f => `family=${f.google}`).join('&')
-    if (!families) return
-    const id = 'fonts-preload-all'
-    if (document.getElementById(id)) return
-    const link = document.createElement('link')
-    link.id = id
-    link.rel = 'stylesheet'
-    link.href = `https://fonts.googleapis.com/css2?${families}&display=swap`
-    document.head.appendChild(link)
-  }, [])
 
   useEffect(() => {
     if (session) {
@@ -97,144 +71,12 @@ export default function ThumbnailGenerator() {
     }
   }, [session])
 
-  // Încarcă fontul Google selectat — abordare simplă și robustă
-  useEffect(() => {
-    let cancelled = false
-
-    if (!selectedFont.google) { setFontReady(true); return }
-
-    setFontReady(false)
-
-    const linkId = `font-${selectedFont.key}`
-    if (!document.getElementById(linkId)) {
-      const link = document.createElement('link')
-      link.id = linkId
-      link.rel = 'stylesheet'
-      link.href = `https://fonts.googleapis.com/css2?family=${selectedFont.google}&display=swap`
-      document.head.appendChild(link)
-    }
-
-    // Numele familiei, fără ghilimele, exact cum trebuie pentru document.fonts.load
-    const familyName = selectedFont.css.split(',')[0].replace(/"/g, '')
-
-    const tryLoad = () => {
-      if (cancelled) return
-      // încercăm să forțăm încărcarea la câteva dimensiuni — unele browsere
-      // cache-uiesc glyph-urile per (familie+weight), nu per dimensiune,
-      // dar facem asta ca să fim siguri că weight-ul corect e disponibil
-      Promise.all([
-        document.fonts.load(`${selectedFont.weight} 16px "${familyName}"`),
-        document.fonts.load(`${selectedFont.weight} 80px "${familyName}"`),
-      ])
-        .then(() => document.fonts.ready)
-        .then(() => { if (!cancelled) setFontReady(true) })
-        .catch(() => { if (!cancelled) setFontReady(true) })
-    }
-
-    // mic delay ca să dăm timp <link>-ului să se atașeze la stylesheet-uri
-    const t = setTimeout(tryLoad, 100)
-
-    // fallback dur — UI-ul nu rămâne niciodată agățat
-    const fallback = setTimeout(() => { if (!cancelled) setFontReady(true) }, 2500)
-
-    return () => { cancelled = true; clearTimeout(t); clearTimeout(fallback) }
-  }, [selectedFont])
-
-  // Re-render canvas când se schimbă textul sau opțiunile
-  useEffect(() => {
-    if (results[selectedResult]?.url && fontReady) {
-      renderCanvas(results[selectedResult].url)
-    }
-  }, [hookText, subText, textColor, textStroke, fontSize, textPos, bgOverlay, selectedResult, results, selectedFont, fontReady])
-
   if (!mounted || !session) return null
 
   const plan = (session.user as any)?.plan || 'FREE'
   const isPro = plan === 'PRO' || plan === 'ENTERPRISE'
   const thumbsLeft = isPro ? 999 : Math.max(0, FREE_LIMIT - thumbsUsed)
   const canGenerate = thumbsLeft > 0 || isPro
-
-  function renderCanvas(imageUrl: string) {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      canvas.width = 1280
-      canvas.height = 720
-      ctx.drawImage(img, 0, 0, 1280, 720)
-
-      if (!hookText) {
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.95)
-        setFinalImages(prev => { const n = [...prev]; n[selectedResult] = dataUrl; return n })
-        return
-      }
-
-      // Overlay semitraparent
-      if (bgOverlay) {
-        const positions: Record<string, [number, number, number, number]> = {
-          'top-left': [0, 0, 640, 200],
-          'top-center': [0, 0, 1280, 200],
-          'top-right': [640, 0, 640, 200],
-          'center': [0, 260, 1280, 200],
-          'bottom-left': [0, 520, 640, 200],
-          'bottom-center': [0, 520, 1280, 200],
-          'bottom-right': [640, 520, 640, 200],
-        }
-        const [ox, oy, ow, oh] = positions[textPos] || [0, 520, 1280, 200]
-        ctx.fillStyle = 'rgba(0,0,0,0.55)'
-        ctx.fillRect(ox, oy, ow, oh)
-      }
-
-      // Text principal
-      ctx.font = `${selectedFont.weight} ${fontSize}px ${selectedFont.css}`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-
-      const posMap: Record<string, [number, number]> = {
-        'top-left': [320, 100],
-        'top-center': [640, 100],
-        'top-right': [960, 100],
-        'center': [640, 360],
-        'bottom-left': [320, 620],
-        'bottom-center': [640, 620],
-        'bottom-right': [960, 620],
-      }
-      const [tx, ty] = posMap[textPos] || [640, 620]
-
-      if (textStroke) {
-        ctx.strokeStyle = '#000000'
-        ctx.lineWidth = fontSize / 8
-        ctx.lineJoin = 'round'
-        ctx.strokeText(hookText.toUpperCase(), tx, ty)
-      }
-      ctx.fillStyle = textColor
-      ctx.fillText(hookText.toUpperCase(), tx, ty)
-
-      // Sub-text
-      if (subText) {
-        ctx.font = `${selectedFont.weight} ${Math.round(fontSize * 0.45)}px ${selectedFont.css}`
-        if (textStroke) {
-          ctx.strokeStyle = '#000000'
-          ctx.lineWidth = fontSize / 16
-          ctx.strokeText(subText.toUpperCase(), tx, ty + fontSize * 0.7)
-        }
-        ctx.fillStyle = textColor
-        ctx.fillText(subText.toUpperCase(), tx, ty + fontSize * 0.7)
-      }
-
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.95)
-      setFinalImages(prev => { const n = [...prev]; n[selectedResult] = dataUrl; return n })
-    }
-    img.onerror = () => {
-      // Dacă CORS blochează, folosim imaginea directă
-      setFinalImages(prev => { const n = [...prev]; n[selectedResult] = imageUrl; return n })
-    }
-    img.src = imageUrl
-  }
 
   async function handleInspireUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
@@ -285,7 +127,11 @@ export default function ThumbnailGenerator() {
         if (ytId) ytInspiration = ` Inspired by YouTube thumbnail style, vibrant and eye-catching like popular ${niche} videos.`
       }
 
-      const fullPrompt = `Professional YouTube thumbnail, ${style.toLowerCase()} style, ${niche} niche. ${prompt}. ${ytInspiration} Photorealistic, high contrast, dramatic lighting, 16:9 ratio, no text, clean composition suitable for text overlay. Professional photography quality.`
+      const textInstruction = hookText
+        ? ` Include bold, large, eye-catching YouTube thumbnail text overlay that reads exactly: "${hookText.toUpperCase()}"${subText ? ` with smaller secondary text below it that reads: "${subText.toUpperCase()}"` : ''}. Text must be in a bold sans-serif font, white or bright color with black outline/shadow for maximum readability, positioned for clear visibility, professionally integrated into the composition like a real viral YouTube thumbnail.`
+        : ''
+
+      const fullPrompt = `Professional YouTube thumbnail, ${style.toLowerCase()} style, ${niche} niche. ${prompt}. ${ytInspiration}${textInstruction} Photorealistic, high contrast, dramatic lighting, 16:9 ratio, clean professional composition. Professional photography quality.`
 
       const generated: {url: string}[] = []
       for (let i = 0; i < variants; i++) {
@@ -312,15 +158,6 @@ export default function ThumbnailGenerator() {
     setLoading(false)
   }
 
-  function downloadFinal(idx: number) {
-    const url = finalImages[idx] || results[idx]?.url
-    if (!url) return
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `thumbnail-${idx+1}.jpg`
-    a.click()
-  }
-
   const inp: React.CSSProperties = {
     width: '100%', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.09)',
     borderRadius: '9px', padding: '10px 12px', color: 'var(--text)', fontSize: '13px',
@@ -330,7 +167,6 @@ export default function ThumbnailGenerator() {
   return (
     <div style={{ minHeight:'100vh', background:'var(--bg)', color:'var(--text)', fontFamily:'Inter,sans-serif', position:'relative', overflow:'hidden' }}>
       <div className="orb orb-1"/><div className="orb orb-2"/>
-      <canvas ref={canvasRef} style={{ display:'none' }}/>
 
       {/* Nav */}
       <nav style={{ position:'sticky', top:0, zIndex:100, background:'rgba(8,8,16,.9)', backdropFilter:'blur(24px)', borderBottom:'1px solid rgba(255,255,255,.06)' }}>
@@ -357,7 +193,7 @@ export default function ThumbnailGenerator() {
         <div style={{ marginBottom:'24px', display:'flex', alignItems:'flex-end', justifyContent:'space-between', flexWrap:'wrap', gap:'12px' }}>
           <div>
             <h1 className="font-display" style={{ fontSize:'26px', fontWeight:700, letterSpacing:'-.02em', margin:'0 0 6px' }}>Thumbnail Generator AI</h1>
-            <p style={{ fontSize:'13px', color:'var(--text3)', margin:0 }}>Generează imagini cu Flux 1.1 Pro + adaugă text profesional cu Canvas</p>
+            <p style={{ fontSize:'13px', color:'var(--text3)', margin:0 }}>Generează imagini cu Flux 1.1 Pro — textul e desenat direct de AI în imagine</p>
           </div>
           {!isPro && !canGenerate && (
             <a href="/pricing" style={{ padding:'10px 20px', borderRadius:'9px', background:'linear-gradient(135deg,var(--gold),var(--gold2))', color:'#0A0800', fontWeight:700, textDecoration:'none', fontSize:'13px' }}>
@@ -470,7 +306,7 @@ export default function ThumbnailGenerator() {
             {/* Card text overlay */}
             <div style={{ background:'var(--bg2)', border:'1px solid rgba(139,92,246,.15)', borderRadius:'14px', padding:'16px', position:'relative', overflow:'hidden' }}>
               <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:'linear-gradient(90deg,transparent,rgba(139,92,246,.5),transparent)' }}/>
-              <p style={{ fontSize:'11px', fontWeight:700, color:'var(--violet)', textTransform:'uppercase', letterSpacing:'.08em', margin:'0 0 12px' }}>✍️ Text overlay (Canvas)</p>
+              <p style={{ fontSize:'11px', fontWeight:700, color:'var(--violet)', textTransform:'uppercase', letterSpacing:'.08em', margin:'0 0 12px' }}>✍️ Text pe thumbnail (generat de AI)</p>
 
               <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
                 <div>
@@ -487,24 +323,6 @@ export default function ThumbnailGenerator() {
                     placeholder='Ex: Secretul pe care nu ți-l spune nimeni'
                     style={inp} onFocus={e=>e.target.style.borderColor='rgba(139,92,246,.5)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,.09)'}
                   />
-                </div>
-
-                <div>
-                  <label style={{ display:'block', fontSize:'10px', fontWeight:600, letterSpacing:'.09em', textTransform:'uppercase', color:'var(--text3)', marginBottom:'5px' }}>
-                    Font {!fontReady && <span style={{ color:'var(--gold)' }}>· se încarcă...</span>}
-                  </label>
-                  <div style={{ display:'flex', gap:'5px', flexWrap:'wrap' }}>
-                    {FONTS.map(f=>(
-                      <button key={f.key} type="button" onClick={()=>setSelectedFont(f)}
-                        style={{ padding:'6px 12px', borderRadius:'100px', border:'none', cursor:'pointer', fontFamily:'Inter,sans-serif',
-                          background: selectedFont.key===f.key ? '#7C3AED' : 'rgba(255,255,255,.05)',
-                          color: selectedFont.key===f.key ? '#fff' : 'rgba(255,255,255,.4)',
-                          boxShadow: selectedFont.key===f.key ? '0 0 14px rgba(124,58,237,.5)' : 'none',
-                          fontSize:'12px', fontWeight: selectedFont.key===f.key ? 700 : 500, transition:'all .2s' }}>
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
                 </div>
 
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
@@ -649,61 +467,24 @@ export default function ThumbnailGenerator() {
                   <span style={{ fontSize:'12px', fontWeight:600, color:'var(--gold)' }}>🖼️ Preview 1280×720</span>
                   <div style={{ display:'flex', gap:'6px' }}>
                     <span style={{ fontSize:'11px', color:'var(--green)', background:'rgba(52,211,153,.1)', padding:'2px 8px', borderRadius:'100px', border:'1px solid rgba(52,211,153,.2)' }}>{imageProvider==='grok'?'𝕏 Grok Imagine':'⚡ Flux 1.1 Pro'}</span>
-                    {hookText && <span style={{ fontSize:'11px', color:'var(--violet)', background:'rgba(139,92,246,.1)', padding:'2px 8px', borderRadius:'100px', border:'1px solid rgba(139,92,246,.2)' }}>+ Canvas text</span>}
+                    {hookText && <span style={{ fontSize:'11px', color:'var(--violet)', background:'rgba(139,92,246,.1)', padding:'2px 8px', borderRadius:'100px', border:'1px solid rgba(139,92,246,.2)' }}>+ text AI</span>}
                   </div>
                 </div>
 
-                {/* Imagine cu text overlay vizual */}
+                {/* Imagine finală — textul e deja generat de AI direct în imagine */}
                 <div style={{ position:'relative', aspectRatio:'16/9', overflow:'hidden' }}>
                   <img
                     src={results[selectedResult].url}
                     alt="Thumbnail"
                     style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
                   />
-                  {/* Text overlay vizual în browser */}
-                  {hookText && (
-                    <div style={{
-                      position:'absolute', inset:0,
-                      display:'flex', flexDirection:'column',
-                      alignItems: textPos.includes('left')?'flex-start':textPos.includes('right')?'flex-end':'center',
-                      justifyContent: textPos.includes('top')?'flex-start':textPos.includes('bottom')?'flex-end':'center',
-                      padding:'24px',
-                    }}>
-                      {bgOverlay && <div style={{
-                        position:'absolute', inset:0,
-                        background: textPos.includes('top')?'linear-gradient(to bottom,rgba(0,0,0,.6) 0%,transparent 50%)':
-                                    textPos.includes('bottom')?'linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 50%)':
-                                    'rgba(0,0,0,.35)'
-                      }}/>}
-                      <div style={{ position:'relative', textAlign: textPos.includes('left')?'left':textPos.includes('right')?'right':'center' }}>
-                        <p style={{
-                          fontSize: `${Math.round(fontSize*0.055)}vw`,
-                          fontWeight:900, color:textColor, margin:'0 0 4px',
-                          textTransform:'uppercase', letterSpacing:'-.02em', lineHeight:1.1,
-                          textShadow: textStroke?'2px 2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000, -2px -2px 0 #000, 4px 4px 8px rgba(0,0,0,.8)':'none',
-                          fontFamily:'Impact, Arial Black, sans-serif',
-                        }}>{hookText}</p>
-                        {subText && <p style={{
-                          fontSize: `${Math.round(fontSize*0.028)}vw`,
-                          fontWeight:700, color:textColor, margin:0,
-                          textTransform:'uppercase',
-                          textShadow: textStroke?'1px 1px 0 #000, -1px 1px 0 #000':'none',
-                          fontFamily:'Impact, Arial Black, sans-serif',
-                        }}>{subText}</p>}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Actions */}
                 <div style={{ padding:'12px 14px', display:'flex', gap:'8px', flexWrap:'wrap' }}>
-                  <button onClick={()=>downloadFinal(selectedResult)}
-                    style={{ flex:1, padding:'10px', borderRadius:'9px', border:'none', background:'linear-gradient(135deg,var(--gold),var(--gold2))', color:'#0A0800', fontSize:'13px', fontWeight:700, cursor:'pointer', fontFamily:'Inter,sans-serif' }}>
-                    ↓ Download cu text
-                  </button>
-                  <a href={results[selectedResult].url} download={`thumbnail-bg-${selectedResult+1}.jpg`} target="_blank" rel="noopener noreferrer"
-                    style={{ padding:'10px 14px', borderRadius:'9px', background:'var(--surface)', border:'1px solid var(--border)', color:'var(--text3)', fontSize:'13px', fontWeight:600, textDecoration:'none' }}>
-                    ↓ Fără text
+                  <a href={results[selectedResult].url} download={`thumbnail-${selectedResult+1}.jpg`} target="_blank" rel="noopener noreferrer"
+                    style={{ flex:1, padding:'10px', borderRadius:'9px', border:'none', background:'linear-gradient(135deg,var(--gold),var(--gold2))', color:'#0A0800', fontSize:'13px', fontWeight:700, textDecoration:'none', textAlign:'center' }}>
+                    ↓ Download
                   </a>
                   <button onClick={()=>navigator.clipboard.writeText(results[selectedResult].url)}
                     style={{ padding:'10px 14px', borderRadius:'9px', background:'var(--surface)', border:'1px solid var(--border)', color:'var(--text3)', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'Inter,sans-serif' }}>
@@ -764,7 +545,7 @@ export default function ThumbnailGenerator() {
               <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
                 {[
                   ['1️⃣', 'Flux 1.1 Pro', 'Cel mai bun model AI open-source generează fundalul imaginii'],
-                  ['2️⃣', 'Canvas Text', 'Textul hook e adăugat profesional prin Canvas API — perfect și lizibil'],
+                  ['2️⃣', 'Text AI integrat', 'Hook-ul tău e inclus direct în prompt — AI-ul desenează textul în imagine'],
                   ['3️⃣', 'Download', 'Imaginea finală 1280×720 gata de upload pe YouTube'],
                 ].map(([icon, title, desc]) => (
                   <div key={title} style={{ display:'flex', gap:'10px', alignItems:'flex-start' }}>
