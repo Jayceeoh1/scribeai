@@ -5,7 +5,16 @@ import { useEffect, useState, useRef } from 'react'
 
 const STYLES = ['Dramatic','Minimal','Colorat','Profesional','Gaming','Tutorial','Motivațional','Documentary']
 const NICHES = ['Tech & AI','Business & Finance','Gaming','Education','Entertainment','Fitness & Health','Travel','Food & Cooking','Music','Personal Development','Marketing','Science']
-const FONTS = ['Impact','Arial Black','Montserrat','Bebas Neue','Anton']
+const FONTS = [
+  { key: 'impact',     label: 'Impact',         css: '"Impact","Arial Black",sans-serif', weight: '900', google: null },
+  { key: 'anton',      label: 'Anton',          css: '"Anton",sans-serif',                weight: '400', google: 'Anton' },
+  { key: 'bebas',      label: 'Bebas Neue',     css: '"Bebas Neue",sans-serif',            weight: '400', google: 'Bebas+Neue' },
+  { key: 'archivo',    label: 'Archivo Black',  css: '"Archivo Black",sans-serif',         weight: '400', google: 'Archivo+Black' },
+  { key: 'montserrat', label: 'Montserrat',     css: '"Montserrat",sans-serif',            weight: '800', google: 'Montserrat:wght@800' },
+  { key: 'poppins',    label: 'Poppins',        css: '"Poppins",sans-serif',               weight: '700', google: 'Poppins:wght@700' },
+  { key: 'oswald',     label: 'Oswald',         css: '"Oswald",sans-serif',                weight: '600', google: 'Oswald:wght@600' },
+  { key: 'inter',      label: 'Inter (subtil)', css: '"Inter",sans-serif',                 weight: '700', google: 'Inter:wght@700' },
+]
 const TEXT_POSITIONS = ['top-left','top-center','top-right','center','bottom-left','bottom-center','bottom-right']
 const TEXT_COLORS = ['#FFFFFF','#FF0000','#FFD700','#00FF00','#FF6B00','#00BFFF','#FF1493','#000000']
 
@@ -46,6 +55,8 @@ export default function ThumbnailGenerator() {
   const [fontSize, setFontSize] = useState(80)
   const [textPos, setTextPos] = useState('bottom-center')
   const [bgOverlay, setBgOverlay] = useState(true)
+  const [selectedFont, setSelectedFont] = useState(FONTS[1]) // Anton implicit — bold dar elegant
+  const [fontReady, setFontReady] = useState(true) // Impact e system font, gata instant
 
   // Inspiratie
   const [imageProvider, setImageProvider] = useState<'replicate'|'grok'>('replicate')
@@ -72,12 +83,35 @@ export default function ThumbnailGenerator() {
     }
   }, [session])
 
+  // Încarcă fontul Google selectat (dacă nu e deja injectat) și marchează gata
+  useEffect(() => {
+    if (!selectedFont.google) { setFontReady(true); return }
+    const linkId = `font-${selectedFont.key}`
+    if (document.getElementById(linkId)) {
+      // deja injectat — așteptăm document.fonts.ready ca să fim siguri
+      setFontReady(false)
+      document.fonts.ready.then(() => setFontReady(true))
+      return
+    }
+    setFontReady(false)
+    const link = document.createElement('link')
+    link.id = linkId
+    link.rel = 'stylesheet'
+    link.href = `https://fonts.googleapis.com/css2?family=${selectedFont.google}&display=swap`
+    link.onload = () => {
+      // Forțăm browserul să încarce efectiv glyph-urile înainte de a desena pe canvas
+      const testFont = `${selectedFont.weight} 80px ${selectedFont.css}`
+      document.fonts.load(testFont).then(() => setFontReady(true)).catch(() => setFontReady(true))
+    }
+    document.head.appendChild(link)
+  }, [selectedFont])
+
   // Re-render canvas când se schimbă textul sau opțiunile
   useEffect(() => {
-    if (results[selectedResult]?.url) {
+    if (results[selectedResult]?.url && fontReady) {
       renderCanvas(results[selectedResult].url)
     }
-  }, [hookText, subText, textColor, textStroke, fontSize, textPos, bgOverlay, selectedResult, results])
+  }, [hookText, subText, textColor, textStroke, fontSize, textPos, bgOverlay, selectedResult, results, selectedFont, fontReady])
 
   if (!mounted || !session) return null
 
@@ -122,7 +156,7 @@ export default function ThumbnailGenerator() {
       }
 
       // Text principal
-      ctx.font = `900 ${fontSize}px Impact, Arial Black, sans-serif`
+      ctx.font = `${selectedFont.weight} ${fontSize}px ${selectedFont.css}`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
 
@@ -148,7 +182,7 @@ export default function ThumbnailGenerator() {
 
       // Sub-text
       if (subText) {
-        ctx.font = `700 ${Math.round(fontSize * 0.45)}px Impact, Arial Black, sans-serif`
+        ctx.font = `${selectedFont.weight} ${Math.round(fontSize * 0.45)}px ${selectedFont.css}`
         if (textStroke) {
           ctx.strokeStyle = '#000000'
           ctx.lineWidth = fontSize / 16
@@ -419,6 +453,24 @@ export default function ThumbnailGenerator() {
                     placeholder='Ex: Secretul pe care nu ți-l spune nimeni'
                     style={inp} onFocus={e=>e.target.style.borderColor='rgba(139,92,246,.5)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,.09)'}
                   />
+                </div>
+
+                <div>
+                  <label style={{ display:'block', fontSize:'10px', fontWeight:600, letterSpacing:'.09em', textTransform:'uppercase', color:'var(--text3)', marginBottom:'5px' }}>
+                    Font {!fontReady && <span style={{ color:'var(--gold)' }}>· se încarcă...</span>}
+                  </label>
+                  <div style={{ display:'flex', gap:'5px', flexWrap:'wrap' }}>
+                    {FONTS.map(f=>(
+                      <button key={f.key} type="button" onClick={()=>setSelectedFont(f)}
+                        style={{ padding:'6px 12px', borderRadius:'100px', border:'none', cursor:'pointer', fontFamily:'Inter,sans-serif',
+                          background: selectedFont.key===f.key ? '#7C3AED' : 'rgba(255,255,255,.05)',
+                          color: selectedFont.key===f.key ? '#fff' : 'rgba(255,255,255,.4)',
+                          boxShadow: selectedFont.key===f.key ? '0 0 14px rgba(124,58,237,.5)' : 'none',
+                          fontSize:'12px', fontWeight: selectedFont.key===f.key ? 700 : 500, transition:'all .2s' }}>
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
