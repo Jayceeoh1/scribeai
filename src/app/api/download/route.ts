@@ -36,17 +36,27 @@ function runYtDlp(ytdlp: string, baseArgs: string[], playerClient: string, tmpDi
     ...baseArgs,
     '--extractor-args', `youtube:player_client=${playerClient}`,
   ]
+  console.log(`[ytdlp] Trying client="${playerClient}" — cmd: ${ytdlp} ${args.join(' ')}`)
   return new Promise((resolve) => {
     let filePath = ''
     let stderr = ''
     const proc = spawn(ytdlp, args)
     proc.stdout.on('data', (d: Buffer) => {
       const line = d.toString().trim()
+      if (line) console.log(`[ytdlp:stdout] ${line}`)
       if (line && fs.existsSync(line)) filePath = line
     })
-    proc.stderr.on('data', (d: Buffer) => { stderr += d.toString() })
-    proc.on('error', (err) => { resolve({ ok: false, stderr: `spawn-error: ${err.message}` }) })
+    proc.stderr.on('data', (d: Buffer) => {
+      const chunk = d.toString()
+      stderr += chunk
+      console.log(`[ytdlp:stderr] ${chunk.trim()}`)
+    })
+    proc.on('error', (err) => {
+      console.error(`[ytdlp] spawn-error: ${err.message}`)
+      resolve({ ok: false, stderr: `spawn-error: ${err.message}` })
+    })
     proc.on('close', (code) => {
+      console.log(`[ytdlp] client="${playerClient}" exited with code ${code}, filePath="${filePath}"`)
       // Succes DOAR dacă procesul a ieșit cu cod 0 ȘI a printat un filePath valid.
       // Nu mai facem fallback pe "orice fișier găsit în tmpDir" — acel mecanism
       // putea livra accidental un fișier rezidual de la o încercare anterioară
@@ -94,7 +104,7 @@ export async function POST(req: NextRequest) {
     ...fmtArgs,
     '-o', outTpl,
     '--no-playlist',
-    '--no-warnings',
+    '-v',
     '--print', 'after_move:filepath',
     '--print', 'before_dl:[ytdlp-debug] selected format: %(format_id)s %(height)sp %(vcodec)s/%(acodec)s client=%(extractor_key)s',
     url,
