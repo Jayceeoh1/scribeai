@@ -79,14 +79,14 @@ export async function POST(req: NextRequest) {
     fmtArgs = ['-x', '--audio-format', 'mp3', '--audio-quality', '192K']
     mimeType = 'audio/mpeg'
   } else if (format === 'mp4-480') {
-    // video-only la rezoluția cerută + cel mai bun audio separat, mergeuite cu ffmpeg.
-    // Fără fallback pe "best" (stream combinat) — acela e limitat de YouTube la 360p/720p
-    // și ar masca silențios eșecul, livrând calitate mult mai mică decât cea cerută.
-    fmtArgs = ['-f', 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio', '--merge-output-format', 'mp4']
+    // video-only la rezoluția cerută + cel mai bun audio separat, mergeuit cu ffmpeg.
+    // Fără fallback pe "best" (stream combinat) — acela e adesea limitat de YouTube
+    // la 360p și ar masca silențios eșecul, livrând calitate mult mai mică decât cea cerută.
+    fmtArgs = ['-f', 'bestvideo[height<=480]+bestaudio/best[height<=480]', '--merge-output-format', 'mp4']
   } else if (format === 'mp4-720') {
-    fmtArgs = ['-f', 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio', '--merge-output-format', 'mp4']
+    fmtArgs = ['-f', 'bestvideo[height<=720]+bestaudio/best[height<=720]', '--merge-output-format', 'mp4']
   } else {
-    fmtArgs = ['-f', 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio', '--merge-output-format', 'mp4']
+    fmtArgs = ['-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]', '--merge-output-format', 'mp4']
   }
 
   const baseArgs = [
@@ -114,19 +114,27 @@ export async function POST(req: NextRequest) {
     lastError = res.stderr
     // dacă yt-dlp nici nu există pe server, nu are sens să reîncercăm cu alt client
     if (lastError.startsWith('spawn-error')) break
-    // dacă eroarea nu e despre bot-detection (ex: video privat, șters, geo-blocat),
-    // schimbarea clientului nu va ajuta — oprim din retry ca să nu pierdem timp
-    const isBotDetection = lastError.includes('Sign in to confirm') || lastError.includes('not a bot')
-    if (!isBotDetection) break
+    // dacă eroarea e despre bot-detection SAU despre format indisponibil pe acest
+    // client (frecvent când un client nu expune deloc formatele DASH cerute),
+    // schimbarea clientului poate ajuta — altfel (video privat/șters/geo-blocat)
+    // nu are sens să mai încercăm celelalte combinații
+    const worthRetrying = lastError.includes('Sign in to confirm')
+      || lastError.includes('not a bot')
+      || lastError.includes('Requested format is not available')
+      || lastError.includes('not available on this app')
+    if (!worthRetrying) break
   }
 
   if (!resultPath) {
     if (lastError.startsWith('spawn-error')) {
       return NextResponse.json({ error: `yt-dlp nu este instalat pe server (${lastError}). Verifică railpack.json și fă un redeploy fără cache pe Railway.` }, { status: 500 })
     }
-    const friendly = lastError.includes('Sign in to confirm')
-      ? 'YouTube a blocat temporar acest server pentru descărcări automate. Încearcă din nou peste câteva minute sau alege un alt video.'
-      : `Download eșuat: ${lastError.slice(0, 250)}`
+    let friendly = `Download eșuat: ${lastError.slice(0, 250)}`
+    if (lastError.includes('Sign in to confirm') || lastError.includes('not a bot')) {
+      friendly = 'YouTube a blocat temporar acest server pentru descărcări automate. Încearcă din nou peste câteva minute sau alege un alt video.'
+    } else if (lastError.includes('Requested format is not available')) {
+      friendly = `Calitatea ${format === 'mp4-1080' || !format ? '1080p' : format} nu este disponibilă pentru acest video. Încearcă o calitate mai mică (720p, 480p) sau MP3.`
+    }
     return NextResponse.json({ error: friendly }, { status: 500 })
   }
 
