@@ -69,7 +69,9 @@ export async function POST(req: NextRequest) {
   const ytdlp  = findYtDlp()
   const tmpDir = os.tmpdir()
   const requestId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-  const outTpl = path.join(tmpDir, `yt_${videoId}_${requestId}_%(title)s.%(ext)s`)
+  // Includem %(height)sp direct în numele fișierului — așa vedem garantat,
+  // chiar și fără să ne uităm prin headere, ce rezoluție a livrat efectiv yt-dlp.
+  const outTpl = path.join(tmpDir, `yt_${videoId}_${requestId}_[%(height)sp]_%(title)s.%(ext)s`)
 
   let fmtArgs: string[]
   let mimeType = 'video/mp4'
@@ -94,6 +96,7 @@ export async function POST(req: NextRequest) {
     '--no-playlist',
     '--no-warnings',
     '--print', 'after_move:filepath',
+    '--print', 'before_dl:[ytdlp-debug] selected format: %(format_id)s %(height)sp %(vcodec)s/%(acodec)s client=%(extractor_key)s',
     url,
   ]
 
