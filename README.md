@@ -43,3 +43,4 @@ Trello API (card nou + fișier .txt atașat)
 ## Limitări
 - Videoclipul trebuie să aibă subtitare activate (manuale sau auto-generate)
 - Transcripturi foarte lungi sunt tăiate la ~14.000 caractere înainte de a fi trimise la Claude
+ 
