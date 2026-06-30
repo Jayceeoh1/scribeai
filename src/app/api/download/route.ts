@@ -47,17 +47,15 @@ function runYtDlp(ytdlp: string, baseArgs: string[], playerClient: string, tmpDi
     proc.stderr.on('data', (d: Buffer) => { stderr += d.toString() })
     proc.on('error', (err) => { resolve({ ok: false, stderr: `spawn-error: ${err.message}` }) })
     proc.on('close', (code) => {
-      if (code !== 0 || !filePath || !fs.existsSync(filePath)) {
-        // fallback: caută orice fișier generat în tmpDir pentru acest videoId
-        const files = fs.readdirSync(tmpDir).filter(f => f.startsWith(`yt_${videoId}_`))
-        if (files.length > 0) {
-          resolve({ ok: true, filePath: path.join(tmpDir, files[files.length - 1]) })
-          return
-        }
-        resolve({ ok: false, stderr })
-        return
+      // Succes DOAR dacă procesul a ieșit cu cod 0 ȘI a printat un filePath valid.
+      // Nu mai facem fallback pe "orice fișier găsit în tmpDir" — acel mecanism
+      // putea livra accidental un fișier rezidual de la o încercare anterioară
+      // eșuată (ex: 360p) ca fiind rezultatul corect al cererii curente.
+      if (code === 0 && filePath && fs.existsSync(filePath)) {
+        resolve({ ok: true, filePath })
+      } else {
+        resolve({ ok: false, stderr: stderr || `yt-dlp exited with code ${code}` })
       }
-      resolve({ ok: true, filePath })
     })
   })
 }
@@ -70,7 +68,8 @@ export async function POST(req: NextRequest) {
 
   const ytdlp  = findYtDlp()
   const tmpDir = os.tmpdir()
-  const outTpl = path.join(tmpDir, `yt_${videoId}_%(title)s.%(ext)s`)
+  const requestId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  const outTpl = path.join(tmpDir, `yt_${videoId}_${requestId}_%(title)s.%(ext)s`)
 
   let fmtArgs: string[]
   let mimeType = 'video/mp4'
@@ -107,10 +106,11 @@ export async function POST(req: NextRequest) {
 
   let lastError = ''
   let resultPath = ''
+  let successClient = ''
 
   for (const clientCombo of clientCombosToTry) {
     const res = await runYtDlp(ytdlp, baseArgs, clientCombo, tmpDir, videoId)
-    if (res.ok) { resultPath = res.filePath; break }
+    if (res.ok) { resultPath = res.filePath; successClient = clientCombo; break }
     lastError = res.stderr
     // dacă yt-dlp nici nu există pe server, nu are sens să reîncercăm cu alt client
     if (lastError.startsWith('spawn-error')) break
@@ -156,6 +156,7 @@ export async function POST(req: NextRequest) {
         'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
         'Content-Length': String(stat.size),
         'Cache-Control': 'no-store',
+        'X-Ytdlp-Client': successClient || 'unknown',
       },
     })
   } catch (e) {
