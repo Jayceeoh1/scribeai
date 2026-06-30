@@ -117,7 +117,7 @@ export default function ThumbnailGenerator() {
   async function generateThumbnails() {
     if (!prompt && !hookText) return
     if (!canGenerate) return
-    setLoading(true); setError(''); setResults([]); setFinalImages([])
+    setLoading(true); setError(''); setResults([])
 
     try {
       // Construiesc prompt-ul optimizat
