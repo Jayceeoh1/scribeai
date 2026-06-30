@@ -79,11 +79,11 @@ export async function POST(req: NextRequest) {
     fmtArgs = ['-x', '--audio-format', 'mp3', '--audio-quality', '192K']
     mimeType = 'audio/mpeg'
   } else if (format === 'mp4-480') {
-    fmtArgs = ['-f', 'bestvideo[height<=480]+bestaudio/best[height<=480]', '--merge-output-format', 'mp4']
+    fmtArgs = ['-f', 'bestvideo[height<=480]+bestaudio/best[height<=480]/best[height<=480]/best', '--merge-output-format', 'mp4']
   } else if (format === 'mp4-720') {
-    fmtArgs = ['-f', 'bestvideo[height<=720]+bestaudio/best[height<=720]', '--merge-output-format', 'mp4']
+    fmtArgs = ['-f', 'bestvideo[height<=720]+bestaudio/best[height<=720]/best[height<=720]/best', '--merge-output-format', 'mp4']
   } else {
-    fmtArgs = ['-f', 'bestvideo[height<=1080]+bestaudio/best', '--merge-output-format', 'mp4']
+    fmtArgs = ['-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best[height<=1080]/best', '--merge-output-format', 'mp4']
   }
 
   const baseArgs = [
@@ -96,16 +96,17 @@ export async function POST(req: NextRequest) {
   ]
 
   // YouTube blochează agresiv IP-urile de datacenter (Railway etc.) pe clientul
-  // "web" implicit cu mesajul "Sign in to confirm you're not a bot". Clienții
-  // mobili (android/ios) și tv_embedded sunt verificați mult mai relaxat —
-  // încercăm pe rând până unul reușește.
-  const clientsToTry = ['android', 'ios', 'tv_embedded', 'web']
+  // "web" implicit cu mesajul "Sign in to confirm you're not a bot". Combinăm
+  // clientul mobil (care trece de verificarea anti-bot) cu "web" (care expune
+  // toate rezoluțiile, inclusiv 1080p+) — yt-dlp alege automat cel mai bun
+  // format disponibil dintre toate sursele combinate.
+  const clientCombosToTry = ['android,web', 'ios,web', 'tv_embedded,web', 'web']
 
   let lastError = ''
   let resultPath = ''
 
-  for (const client of clientsToTry) {
-    const res = await runYtDlp(ytdlp, baseArgs, client, tmpDir, videoId)
+  for (const clientCombo of clientCombosToTry) {
+    const res = await runYtDlp(ytdlp, baseArgs, clientCombo, tmpDir, videoId)
     if (res.ok) { resultPath = res.filePath; break }
     lastError = res.stderr
     // dacă yt-dlp nici nu există pe server, nu are sens să reîncercăm cu alt client
