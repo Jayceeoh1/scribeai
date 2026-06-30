@@ -97,7 +97,7 @@ export default function ThumbnailGenerator() {
     }
   }, [session])
 
-  // Încarcă fontul Google selectat și marchează gata abia când e cu adevărat disponibil
+  // Încarcă fontul Google selectat — abordare simplă și robustă
   useEffect(() => {
     let cancelled = false
 
@@ -106,36 +106,38 @@ export default function ThumbnailGenerator() {
     setFontReady(false)
 
     const linkId = `font-${selectedFont.key}`
-    let link = document.getElementById(linkId) as HTMLLinkElement | null
-    if (!link) {
-      link = document.createElement('link')
+    if (!document.getElementById(linkId)) {
+      const link = document.createElement('link')
       link.id = linkId
       link.rel = 'stylesheet'
       link.href = `https://fonts.googleapis.com/css2?family=${selectedFont.google}&display=swap`
       document.head.appendChild(link)
     }
 
-    // Poligonul de siguranță: încercăm document.fonts.load, dar oricum confirmăm
-    // disponibilitatea prin document.fonts.ready + un mic delay suplimentar,
-    // pentru că .load() poate rezolva înainte ca glyph-urile să fie efectiv utilizabile pe <canvas>.
-    const fontSpec = `${selectedFont.weight} 80px ${selectedFont.css}`
+    // Numele familiei, fără ghilimele, exact cum trebuie pentru document.fonts.load
+    const familyName = selectedFont.css.split(',')[0].replace(/"/g, '')
 
-    const markReady = () => { if (!cancelled) setFontReady(true) }
+    const tryLoad = () => {
+      if (cancelled) return
+      // încercăm să forțăm încărcarea la câteva dimensiuni — unele browsere
+      // cache-uiesc glyph-urile per (familie+weight), nu per dimensiune,
+      // dar facem asta ca să fim siguri că weight-ul corect e disponibil
+      Promise.all([
+        document.fonts.load(`${selectedFont.weight} 16px "${familyName}"`),
+        document.fonts.load(`${selectedFont.weight} 80px "${familyName}"`),
+      ])
+        .then(() => document.fonts.ready)
+        .then(() => { if (!cancelled) setFontReady(true) })
+        .catch(() => { if (!cancelled) setFontReady(true) })
+    }
 
-    Promise.resolve()
-      .then(() => document.fonts.load(fontSpec).catch(() => {}))
-      .then(() => document.fonts.ready)
-      .then(() => {
-        // mic delay suplimentar — Chrome uneori raportează "ready" cu o frame înainte
-        // ca noul font să fie efectiv folosit la următorul fillText pe canvas
-        setTimeout(markReady, 60)
-      })
-      .catch(markReady)
+    // mic delay ca să dăm timp <link>-ului să se atașeze la stylesheet-uri
+    const t = setTimeout(tryLoad, 100)
 
-    // fallback dur — dacă ceva blochează lanțul de mai sus, nu lăsăm UI-ul agățat
-    const fallback = setTimeout(markReady, 1500)
+    // fallback dur — UI-ul nu rămâne niciodată agățat
+    const fallback = setTimeout(() => { if (!cancelled) setFontReady(true) }, 2500)
 
-    return () => { cancelled = true; clearTimeout(fallback) }
+    return () => { cancelled = true; clearTimeout(t); clearTimeout(fallback) }
   }, [selectedFont])
 
   // Re-render canvas când se schimbă textul sau opțiunile
