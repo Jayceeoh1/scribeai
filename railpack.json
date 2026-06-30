@@ -10,7 +10,9 @@
         "chmod a+rx /usr/local/bin/yt-dlp",
         "/usr/local/bin/yt-dlp --version"
       ],
-      "deployOutputs": ["/usr/local/bin/yt-dlp"]
+      "deployOutputs": [
+        { "include": ["/usr/local/bin/yt-dlp"] }
+      ]
     }
   },
   "deploy": {
