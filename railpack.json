@@ -27,6 +27,6 @@
     }
   },
   "deploy": {
-    "aptPackages": ["ffmpeg", "ca-certificates", "python3"]
+    "aptPackages": ["ffmpeg", "ca-certificates", "python3", "curl"]
   }
 }
