@@ -133,6 +133,22 @@ export default function Tool({ session }: { session: any }) {
   const [genMode, setGenMode]         = useState<'generate'|'rewrite'>('generate')
   const [genTitle, setGenTitle]       = useState('')
   const [genKeywords, setGenKeywords] = useState('')
+  const [suggestingKw, setSuggestingKw] = useState(false)
+
+  async function suggestKeywords() {
+    if (!genTitle || suggestingKw) return
+    setSuggestingKw(true)
+    try {
+      const res = await fetch('/api/suggest-keywords', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: genTitle })
+      })
+      const data = await res.json()
+      if (data.keywords) setGenKeywords(data.keywords)
+    } catch {}
+    setSuggestingKw(false)
+  }
   const [genLanguage, setGenLanguage] = useState('Română')
   const [genDuration, setGenDuration] = useState(5)
   const [genStyle, setGenStyle]       = useState('educational')
@@ -524,7 +540,13 @@ export default function Tool({ session }: { session: any }) {
                           style={inp} onFocus={e=>e.target.style.borderColor='var(--goldbdr)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,.09)'}/>
                       </div>
                       <div>
-                        <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'7px'}}>Keywords *</label>
+                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'7px'}}>
+                          <label style={{fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)'}}>Keywords *</label>
+                          <button type="button" onClick={suggestKeywords} disabled={!genTitle||suggestingKw}
+                            style={{display:'flex',alignItems:'center',gap:'4px',padding:'3px 10px',borderRadius:'100px',border:'1px solid rgba(240,196,68,.3)',background:'rgba(240,196,68,.08)',color:'var(--gold)',fontSize:'11px',fontWeight:600,cursor:!genTitle||suggestingKw?'not-allowed':'pointer',opacity:!genTitle?.4:1,fontFamily:'Inter,sans-serif',transition:'all .2s'}}>
+                            {suggestingKw ? '...' : '✨ Sugerează'}
+                          </button>
+                        </div>
                         <input value={genKeywords} onChange={e=>setGenKeywords(e.target.value)} placeholder="Ex: bani online, freelancing, venituri pasive"
                           style={inp} onFocus={e=>e.target.style.borderColor='var(--goldbdr)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,.09)'}/>
                         <p style={{fontSize:'11px',color:'var(--text3)',marginTop:'4px'}}>Separă keywords cu virgulă</p>
