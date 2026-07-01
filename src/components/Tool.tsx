@@ -396,7 +396,8 @@ export default function Tool({ session }: { session: any }) {
       if (activeBtn) updatePill(activeBtn)
     })
     return () => cancelAnimationFrame(id)
-  }, [mode, updatePill])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
 
   return (
     <div style={{ background: '#040507', minHeight: '100vh', position: 'relative', overflowX: 'hidden',
