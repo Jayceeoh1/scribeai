@@ -55,6 +55,22 @@ export default function ScriptGenerator() {
   const [loading, setLoading]   = useState(false)
   const [output, setOutput]     = useState('')
   const [copied, setCopied]     = useState('')
+  const [suggestingKw, setSuggestingKw] = useState(false)
+
+  async function suggestKeywords() {
+    if (!title || suggestingKw) return
+    setSuggestingKw(true)
+    try {
+      const res = await fetch('/api/suggest-keywords', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+      })
+      const data = await res.json()
+      if (data.keywords) setKeywords(data.keywords)
+    } catch {}
+    setSuggestingKw(false)
+  }
   const outputRef = useRef<HTMLPreElement>(null)
 
   useEffect(() => { setMounted(true) }, [])
@@ -176,7 +192,13 @@ export default function ScriptGenerator() {
 
               {/* Keywords */}
               <div style={{ marginBottom:'16px' }}>
-                <label style={{ display:'block', fontSize:'10px', fontWeight:600, letterSpacing:'.09em', textTransform:'uppercase', color:'var(--text3)', marginBottom:'7px' }}>Keywords principale *</label>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'7px' }}>
+                  <label style={{ fontSize:'10px', fontWeight:600, letterSpacing:'.09em', textTransform:'uppercase', color:'var(--text3)' }}>Keywords principale *</label>
+                  <button type="button" onClick={suggestKeywords} disabled={!title || suggestingKw}
+                    style={{ display:'flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'100px', border:'1px solid rgba(124,58,237,.3)', background:'rgba(124,58,237,.1)', color:'#A78BFA', fontSize:'11px', fontWeight:600, cursor: !title||suggestingKw ? 'not-allowed' : 'pointer', opacity: !title ? .4 : 1, fontFamily:'Inter,sans-serif', transition:'all .2s' }}>
+                    {suggestingKw ? '...' : '✨ Sugerează'}
+                  </button>
+                </div>
                 <input value={keywords} onChange={e=>setKeywords(e.target.value)} placeholder="Ex: bani online, freelancing, venituri pasive"
                   style={inp} onFocus={e=>e.target.style.borderColor='rgba(139,92,246,.5)'} onBlur={e=>e.target.style.borderColor='rgba(255,255,255,.09)'}/>
                 <p style={{ fontSize:'11px', color:'var(--text3)', marginTop:'4px' }}>Separă keywords cu virgulă</p>
