@@ -503,58 +503,169 @@ export default function Tool({ session }: { session: any }) {
       </div>
 
       <style>{`
-        .tool-root { display: flex; min-height: 100vh; position: relative; z-index: 1; }
-        .tool-sidebar-wrap {
-          width: 200px; flex-shrink: 0; padding: 24px 10px;
-          background: rgba(255,255,255,.015);
-          border-right: 1px solid rgba(255,255,255,.05);
-          position: sticky; top: 0; height: 100vh; overflow-y: auto;
-          display: flex; flex-direction: column; gap: 2px;
+        .tool-root {
+          display: flex; min-height: 100vh; position: relative; z-index: 1;
         }
-        .tool-main { flex: 1; min-width: 0; padding: 24px 32px 100px; }
-        .sb-logo { font-size: 15px; font-weight: 800; color: #fff; padding: 0 10px 20px; letter-spacing: -.02em; }
-        .sb-logo span { background: linear-gradient(135deg, #7C3AED, #0CCFB0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .sb-btn { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
-          cursor: pointer; font-family: Inter,sans-serif; font-size: 13px; font-weight: 500;
-          color: rgba(255,255,255,.4); background: transparent; border: none;
-          transition: all .15s; width: 100%; text-align: left; }
-        .sb-btn:hover { background: rgba(255,255,255,.05); color: rgba(255,255,255,.75); }
-        .sb-btn.active { background: rgba(124,58,237,.12); color: #C4B5FD; font-weight: 600; }
-        .sb-btn.active::before { content: ""; width: 3px; height: 16px; background: #7C3AED; border-radius: 2px; flex-shrink: 0; margin-right: -2px; }
-        .sb-badge { font-size: 8px; font-weight: 700; padding: 2px 5px; border-radius: 4px; flex-shrink: 0; margin-left: auto; }
+        /* ── SIDEBAR ── */
+        .tool-sidebar-wrap {
+          width: 210px; flex-shrink: 0;
+          padding: 0;
+          background: #08090E;
+          border-right: 1px solid rgba(255,255,255,.06);
+          position: sticky; top: 0; height: 100vh;
+          display: flex; flex-direction: column;
+          overflow: hidden;
+        }
+        .sb-header {
+          padding: 20px 16px 16px;
+          border-bottom: 1px solid rgba(255,255,255,.05);
+          flex-shrink: 0;
+        }
+        .sb-logo {
+          font-size: 17px; font-weight: 800; letter-spacing: -.03em; color: #fff;
+        }
+        .sb-logo span {
+          background: linear-gradient(135deg,#7C3AED,#0CCFB0);
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .sb-logo-sub {
+          font-size: 10px; color: rgba(255,255,255,.25); font-weight: 400;
+          margin-top: 2px;
+        }
+        .sb-nav {
+          flex: 1; overflow-y: auto; padding: 10px 8px;
+          display: flex; flex-direction: column; gap: 1px;
+        }
+        .sb-nav::-webkit-scrollbar { display: none; }
+        .sb-btn {
+          display: flex; align-items: center; gap: 10px;
+          padding: 10px 12px; border-radius: 9px;
+          cursor: pointer; font-family: Inter,sans-serif;
+          font-size: 13px; font-weight: 500;
+          color: rgba(255,255,255,.38); background: transparent; border: none;
+          transition: all .15s; width: 100%; text-align: left; position: relative;
+        }
+        .sb-btn:hover {
+          background: rgba(255,255,255,.04); color: rgba(255,255,255,.7);
+        }
+        .sb-btn.active {
+          background: rgba(124,58,237,.1); color: #C4B5FD; font-weight: 600;
+        }
+        .sb-btn.active .sb-dot {
+          background: #7C3AED; box-shadow: 0 0 8px rgba(124,58,237,.6);
+        }
+        .sb-dot {
+          width: 6px; height: 6px; border-radius: 50%;
+          background: rgba(255,255,255,.12); flex-shrink: 0; transition: all .15s;
+        }
+        .sb-badge {
+          font-size: 8px; font-weight: 700; padding: 1px 5px;
+          border-radius: 4px; flex-shrink: 0; margin-left: auto;
+          letter-spacing: .03em;
+        }
+        .sb-user {
+          padding: 12px 12px; border-top: 1px solid rgba(255,255,255,.05);
+          flex-shrink: 0;
+        }
+        /* ── MAIN ── */
+        .tool-main {
+          flex: 1; min-width: 0; padding: 28px 32px 100px;
+          display: flex; flex-direction: column; gap: 16px;
+        }
+        .tool-page-header {
+          display: flex; align-items: center; gap: 10px; margin-bottom: 4px;
+        }
+        .tool-page-title {
+          font-size: 18px; font-weight: 700; color: #ECECF1; letter-spacing: -.02em;
+        }
+        .tool-page-sub {
+          font-size: 12px; color: rgba(255,255,255,.3); margin-top: 2px;
+        }
+        /* ── MOBILE ── */
         @media (max-width: 767px) {
           .tool-sidebar-wrap { display: none; }
-          .tool-main { padding: 16px 14px 100px; max-width: 100%; }
+          .tool-main { padding: 14px 14px 100px; }
           .tool-mobile-tabs { display: block !important; }
         }
-        .tool-mobile-tabs { display: none; margin-bottom: 4px; }
+        .tool-mobile-tabs { display: none; margin-bottom: 8px; }
       `}</style>
       <div className="tool-root">
 
         {/* ── SIDEBAR ── */}
         <div className="tool-sidebar-wrap">
-          <div className="sb-logo"><span>Scribe</span>AI</div>
-          {MODES.map(m => {
-            const active = mode === m.key
-            const locked = m.badge === 'PRO' && !isPro
-            return (
-              <button key={m.key} type="button"
-                className={`sb-btn${active ? ' active' : ''}`}
-                onClick={() => { if (locked) { window.location.href = '/pricing'; return } setMode(m.key); reset(); setGenOutput('') }}
-                style={{ opacity: locked ? .6 : 1 }}>
-                {m.label}
-                <span className="sb-badge" style={{
-                  background: m.badge === 'FREE' ? 'rgba(12,207,176,.12)' : 'rgba(245,158,11,.1)',
-                  color: m.badge === 'FREE' ? '#0CCFB0' : '#F59E0B'
-                }}>{m.badge}</span>
-                {locked && <span style={{ fontSize: '9px' }}>🔒</span>}
-              </button>
-            )
-          })}
+          {/* Header */}
+          <div className="sb-header">
+            <div className="sb-logo"><span>Scribe</span>AI</div>
+            <div className="sb-logo-sub">YouTube Script Extractor</div>
+          </div>
+
+          {/* Nav */}
+          <div className="sb-nav">
+            {MODES.map(m => {
+              const active = mode === m.key
+              const locked = m.badge === 'PRO' && !isPro
+              return (
+                <button key={m.key} type="button"
+                  className={`sb-btn${active ? ' active' : ''}`}
+                  onClick={() => { if (locked) { window.location.href = '/pricing'; return } setMode(m.key); reset(); setGenOutput('') }}
+                  style={{ opacity: locked ? .55 : 1 }}>
+                  <span className="sb-dot"/>
+                  {m.label}
+                  <span className="sb-badge" style={{
+                    background: m.badge === 'FREE' ? 'rgba(12,207,176,.1)' : 'rgba(245,158,11,.08)',
+                    color: m.badge === 'FREE' ? '#0CCFB0' : '#F59E0B'
+                  }}>{m.badge}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* User info jos */}
+          <div className="sb-user">
+            <div style={{ display:'flex', alignItems:'center', gap:'8px', padding:'8px 4px' }}>
+              <div style={{ width:'28px', height:'28px', borderRadius:'50%', background:'linear-gradient(135deg,#7C3AED,#F0C444)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'11px', fontWeight:700, color:'#fff', flexShrink:0 }}>
+                {session?.user?.name?.charAt(0)?.toUpperCase() || 'U'}
+              </div>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:'11px', fontWeight:600, color:'rgba(255,255,255,.7)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  {session?.user?.name || session?.user?.email?.split('@')[0]}
+                </div>
+                <div style={{ fontSize:'9px', color:'rgba(255,255,255,.25)' }}>
+                  {isPro ? '✦ Plan PRO' : 'Plan Free'}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ── MAIN CONTENT ── */}
         <div className="tool-main">
+
+        {/* Page header — titlul tab-ului activ, vizibil pe desktop */}
+        <div style={{ display:'none' }} className="tool-page-header-desktop">
+          {(() => {
+            const activeMode = MODES.find(m => m.key === mode)
+            const descriptions: Record<string, string> = {
+              extract: 'Extrage scriptul din orice video YouTube instant',
+              translate: 'Traduce transcriptul în limba dorită cu AI',
+              trello: 'Transformă scriptul în carduri Trello automat',
+              download: 'Descarcă video-uri YouTube în orice format',
+              shorts: 'Detectează momentele virale pentru Shorts/Reels',
+              generate: 'Generează scripturi complete cu AI',
+              batch: 'Procesează mai multe video-uri simultan',
+            }
+            return activeMode ? (
+              <div style={{ marginBottom:'8px' }}>
+                <h1 style={{ fontSize:'20px', fontWeight:700, color:'#ECECF1', letterSpacing:'-.02em', margin:0 }}>
+                  {activeMode.icon} {activeMode.label}
+                </h1>
+                <p style={{ fontSize:'12px', color:'rgba(255,255,255,.3)', margin:'3px 0 0' }}>
+                  {descriptions[activeMode.key] || ''}
+                </p>
+              </div>
+            ) : null
+          })()}
+        </div>
 
         {/* MOBILE TABS — ascuns pe desktop */}
         <div className="tool-mobile-tabs">
