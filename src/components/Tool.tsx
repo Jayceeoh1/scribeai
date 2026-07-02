@@ -502,7 +502,7 @@ export default function Tool({ session }: { session: any }) {
         <div style={{ position: 'absolute', width: '500px', height: '300px', background: 'radial-gradient(ellipse, rgba(124,58,237,.08) 0%, transparent 70%)', top: 0, left: '50%', transform: 'translateX(-50%)' }}/>
       </div>
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: '680px', margin: '0 auto', padding: '24px 20px 100px' }}>
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: '860px', margin: '0 auto', padding: '24px 20px 100px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
         {/* Mode tabs — sliding pill, full width */}
