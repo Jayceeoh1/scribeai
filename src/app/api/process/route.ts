@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
@@ -25,17 +24,30 @@ export async function POST(req: NextRequest) {
 
   try {
     if (provider === 'claude') {
-      if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY lipsă')
-      
-      // NON-streaming - răspuns complet odată
-      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-      const message = await client.messages.create({
-        model,
-        max_tokens: 2048,
-        messages: [{ role: 'user', content: prompt }],
+      const apiKey = process.env.ANTHROPIC_API_KEY
+      if (!apiKey) throw new Error('ANTHROPIC_API_KEY lipsă')
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 2048,
+          messages: [{ role: 'user', content: prompt }],
+        }),
       })
-      
-      const text = message.content[0].type === 'text' ? message.content[0].text : ''
+
+      if (!res.ok) {
+        const err = await res.text()
+        throw new Error(`Claude error ${res.status}: ${err.slice(0, 200)}`)
+      }
+
+      const data = await res.json()
+      const text = data.content?.[0]?.text ?? ''
       return new NextResponse(text, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
 
     } else if (provider === 'gemini') {

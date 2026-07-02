@@ -502,14 +502,65 @@ export default function Tool({ session }: { session: any }) {
         <div style={{ position: 'absolute', width: '500px', height: '300px', background: 'radial-gradient(ellipse, rgba(124,58,237,.08) 0%, transparent 70%)', top: 0, left: '50%', transform: 'translateX(-50%)' }}/>
       </div>
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: '860px', margin: '0 auto', padding: '24px 20px 100px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <style>{`
+        .tool-root { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+        .tool-sidebar-wrap {
+          width: 200px; flex-shrink: 0; padding: 24px 10px;
+          background: rgba(255,255,255,.015);
+          border-right: 1px solid rgba(255,255,255,.05);
+          position: sticky; top: 0; height: 100vh; overflow-y: auto;
+          display: flex; flex-direction: column; gap: 2px;
+        }
+        .tool-main { flex: 1; min-width: 0; padding: 24px 32px 100px; }
+        .sb-logo { font-size: 15px; font-weight: 800; color: #fff; padding: 0 10px 20px; letter-spacing: -.02em; }
+        .sb-logo span { background: linear-gradient(135deg, #7C3AED, #0CCFB0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .sb-btn { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
+          cursor: pointer; font-family: Inter,sans-serif; font-size: 13px; font-weight: 500;
+          color: rgba(255,255,255,.4); background: transparent; border: none;
+          transition: all .15s; width: 100%; text-align: left; }
+        .sb-btn:hover { background: rgba(255,255,255,.05); color: rgba(255,255,255,.75); }
+        .sb-btn.active { background: rgba(124,58,237,.12); color: #C4B5FD; font-weight: 600; }
+        .sb-btn.active::before { content: ""; width: 3px; height: 16px; background: #7C3AED; border-radius: 2px; flex-shrink: 0; margin-right: -2px; }
+        .sb-badge { font-size: 8px; font-weight: 700; padding: 2px 5px; border-radius: 4px; flex-shrink: 0; margin-left: auto; }
+        @media (max-width: 767px) {
+          .tool-sidebar-wrap { display: none; }
+          .tool-main { padding: 16px 14px 100px; max-width: 100%; }
+          .tool-mobile-tabs { display: block !important; }
+        }
+        .tool-mobile-tabs { display: none; margin-bottom: 4px; }
+      `}</style>
+      <div className="tool-root">
 
-        {/* Mode tabs — sliding pill, full width */}
+        {/* ── SIDEBAR ── */}
+        <div className="tool-sidebar-wrap">
+          <div className="sb-logo"><span>Scribe</span>AI</div>
+          {MODES.map(m => {
+            const active = mode === m.key
+            const locked = m.badge === 'PRO' && !isPro
+            return (
+              <button key={m.key} type="button"
+                className={`sb-btn${active ? ' active' : ''}`}
+                onClick={() => { if (locked) { window.location.href = '/pricing'; return } setMode(m.key); reset(); setGenOutput('') }}
+                style={{ opacity: locked ? .6 : 1 }}>
+                {m.label}
+                <span className="sb-badge" style={{
+                  background: m.badge === 'FREE' ? 'rgba(12,207,176,.12)' : 'rgba(245,158,11,.1)',
+                  color: m.badge === 'FREE' ? '#0CCFB0' : '#F59E0B'
+                }}>{m.badge}</span>
+                {locked && <span style={{ fontSize: '9px' }}>🔒</span>}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* ── MAIN CONTENT ── */}
+        <div className="tool-main">
+
+        {/* MOBILE TABS — ascuns pe desktop */}
+        <div className="tool-mobile-tabs">
         <div style={{ position: 'relative' }}>
-          <div ref={tabsRef} className="tabs-scroll" style={{ display: 'flex', gap: '2px', padding: '3px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '100px', overflowX: 'auto', position: 'relative', scrollbarWidth: 'none', msOverflowStyle: 'none', width: '100%' }}>
-          {/* Pill slider */}
-          <div style={{ position: 'absolute', top: '3px', bottom: '3px', left: pillStyle.left, width: pillStyle.width, background: '#7C3AED', borderRadius: '100px', transition: 'left .3s cubic-bezier(.4,0,.2,1), width .3s cubic-bezier(.4,0,.2,1)', boxShadow: '0 0 18px rgba(124,58,237,.45)', pointerEvents: 'none', zIndex: 0 }}/>
+          <div ref={tabsRef} className="tabs-scroll" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '4px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '14px', position: 'relative' }}>
+          <div style={{ position: 'absolute', top: '4px', bottom: '4px', left: pillStyle.left, width: pillStyle.width, background: '#7C3AED', borderRadius: '100px', transition: 'left .3s cubic-bezier(.4,0,.2,1), width .3s cubic-bezier(.4,0,.2,1)', boxShadow: '0 0 18px rgba(124,58,237,.45)', pointerEvents: 'none', zIndex: 0 }}/>
           {MODES.map(m => {
             const active = mode === m.key
             const locked = m.badge === 'PRO' && !isPro
@@ -521,7 +572,7 @@ export default function Tool({ session }: { session: any }) {
                   updatePill(e.currentTarget)
                   setMode(m.key); reset(); setGenOutput('')
                 }}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', padding: '6px 4px', borderRadius: '100px', cursor: 'pointer', outline: 'none', whiteSpace: 'nowrap', flex: 1, minWidth: 0,
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', padding: '7px 12px', borderRadius: '100px', cursor: 'pointer', outline: 'none', whiteSpace: 'nowrap', flexShrink: 0,
                   background: 'transparent',
                   border: 'none',
                   color: active ? '#fff' : 'rgba(255,255,255,.38)',
@@ -536,10 +587,8 @@ export default function Tool({ session }: { session: any }) {
             )
           })}
           </div>
-          {/* Fade edges — sugerează scroll fără bară urâtă */}
-          <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '24px', background: 'linear-gradient(90deg, #040507, transparent)', pointerEvents: 'none', borderRadius: '100px 0 0 100px' }}/>
-          <div style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: '24px', background: 'linear-gradient(270deg, #040507, transparent)', pointerEvents: 'none', borderRadius: '0 100px 100px 0' }}/>
         </div>
+        </div>{/* /tool-mobile-tabs */}
 
         {/* Main card */}
         <div style={{ position: 'relative' }}>
@@ -1485,8 +1534,8 @@ export default function Tool({ session }: { session: any }) {
             <p key={t} style={{fontSize:'11px',color:'var(--text2)',lineHeight:1.5,marginBottom:'5px'}}>· {t}</p>
           ))}
         </div>
-        </div>
-      </div>
+        </div>{/* /tool-main */}
+        </div>{/* /tool-root */}
     </div>
   )
 }
