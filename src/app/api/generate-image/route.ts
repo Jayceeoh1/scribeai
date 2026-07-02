@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       if (!faceImage) return NextResponse.json({ error: 'Trebuie să încarci o poză cu fața ta pentru PuLID' }, { status: 400 })
 
       // Trimitem poza ca data URI direct
-      const pulidRes = await fetch('https://api.replicate.com/v1/models/bytedance/pulid/predictions', {
+      const pulidRes = await fetch('https://api.replicate.com/v1/models/bytedance/flux-pulid/predictions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.REPLICATE_API_KEY}`,
