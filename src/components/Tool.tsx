@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useEffect, useCallback } from 'react'
 
-type Mode = 'extract' | 'translate' | 'trello' | 'download' | 'generate' | 'batch'
+type Mode = 'extract' | 'translate' | 'trello' | 'download' | 'generate' | 'batch' | 'shorts'
 type Step = 'idle' | 'fetching' | 'translating' | 'uploading' | 'downloading' | 'done' | 'error'
 
 const LANGUAGES = [
@@ -40,6 +40,7 @@ const MODES = [
   {key:'trello'   as Mode,icon:'⬡',label:'Trello',badge:'PRO',bcolor:'var(--gold)',bbg:'var(--goldbg)',bbdr:'var(--goldbdr)'},
   {key:'download' as Mode,icon:'↓',label:'Download',badge:'PRO',bcolor:'var(--gold)',bbg:'var(--goldbg)',bbdr:'var(--goldbdr)'},
   {key:'generate' as Mode,icon:'✦',label:'Script AI',badge:'PRO',bcolor:'#F0C444',bbg:'var(--goldbg)',bbdr:'var(--goldbdr)'},
+  {key:'shorts'   as Mode,icon:'✂️',label:'Shorts',   badge:'PRO',bcolor:'#D946EF',bbg:'rgba(217,70,239,.08)',bbdr:'rgba(217,70,239,.25)'},
   {key:'batch'    as Mode,icon:'⚡',label:'Batch',    badge:'PRO',bcolor:'#34D399',bbg:'rgba(52,211,153,.08)',bbdr:'rgba(52,211,153,.25)'},
 ]
 
@@ -135,6 +136,15 @@ export default function Tool({ session }: { session: any }) {
   const [genKeywords, setGenKeywords] = useState('')
   const [suggestingKw, setSuggestingKw] = useState(false)
 
+  // ── SHORTS STATE ──
+  const [shortsClips, setShortsClips] = useState<any[]>([])
+  const [shortsLoading, setShortsLoading] = useState(false)
+  const [shortsError, setShortsError] = useState('')
+  const [shortsCount, setShortsCount] = useState(3)
+  const [shortsMinDur, setShortsMinDur] = useState<'30-60'|'15-30'>('30-60')
+  const [downloadingClip, setDownloadingClip] = useState<number|null>(null)
+  const [clipMode, setClipMode] = useState<'auto'|'manual'>('auto')
+
   async function suggestKeywords() {
     if (!genTitle || suggestingKw) return
     setSuggestingKw(true)
@@ -148,6 +158,52 @@ export default function Tool({ session }: { session: any }) {
       if (data.keywords) setGenKeywords(data.keywords)
     } catch {}
     setSuggestingKw(false)
+  }
+
+  async function generateShorts() {
+    if (!preview) { setShortsError('Extrage mai întâi un transcript din tab-ul Transcript.'); return }
+    setShortsLoading(true); setShortsError(''); setShortsClips([])
+    try {
+      const res = await fetch('/api/shorts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: preview, title: videoInfo?.title || '', count: shortsCount })
+      })
+      const data = await res.json()
+      if (!res.ok) { setShortsError(data.error || 'Eroare'); return }
+      setShortsClips(data.clips || [])
+    } catch (e: any) {
+      setShortsError(e?.message || 'Eroare rețea')
+    } finally {
+      setShortsLoading(false)
+    }
+  }
+
+  async function downloadClip(clip: any, idx: number) {
+    if (!url) { setShortsError('URL video lipsă — intră mai întâi pe tab-ul Transcript și pune URL-ul.'); return }
+    setDownloadingClip(idx)
+    try {
+      const res = await fetch('/api/cut-clip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoUrl: url, startSeconds: clip.startSeconds, endSeconds: clip.endSeconds, clipIndex: idx })
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        setShortsError(err.error || 'Eroare download clip')
+        return
+      }
+      const blob = await res.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `short_clip_${idx + 1}.mp4`
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch (e: any) {
+      setShortsError(e?.message || 'Eroare rețea')
+    } finally {
+      setDownloadingClip(null)
+    }
   }
   const [genLanguage, setGenLanguage] = useState('Română')
   const [genDuration, setGenDuration] = useState(5)
@@ -671,6 +727,149 @@ export default function Tool({ session }: { session: any }) {
                     }
                   </button>
                   {genLoading&&<p style={{textAlign:'center',fontSize:'12px',color:'var(--text3)'}}>Claude AI lucrează... ~30-60 secunde</p>}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── SHORTS MODE ── */}
+          {mode === 'shorts' && (
+            <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
+              {!isPro ? (
+                <div style={{textAlign:'center',padding:'32px 20px',background:'rgba(217,70,239,.06)',border:'1px solid rgba(217,70,239,.2)',borderRadius:'14px'}}>
+                  <div style={{fontSize:'32px',marginBottom:'10px'}}>✂️</div>
+                  <p style={{fontWeight:700,marginBottom:'6px'}}>Shorts Generator — PRO</p>
+                  <p style={{fontSize:'12px',color:'var(--text3)',marginBottom:'14px'}}>Extrage automat momentele virale din orice video YouTube</p>
+                  <button onClick={()=>window.location.href='/pricing'} style={{padding:'10px 24px',borderRadius:'100px',border:'none',background:'linear-gradient(135deg,#D946EF,#6366F1)',color:'#fff',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>Upgrade la PRO</button>
+                </div>
+              ) : (
+                <>
+                  {/* Opțiuni */}
+                  <div style={{background:'rgba(217,70,239,.05)',border:'1px solid rgba(217,70,239,.15)',borderRadius:'14px',padding:'16px',display:'flex',flexDirection:'column',gap:'12px'}}>
+
+                    <div>
+                      <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'7px'}}>Număr clipuri (max 15 PRO)</label>
+                      <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+                        {[3,5,7,10,15].map(n=>(
+                          <button key={n} type="button" onClick={()=>setShortsCount(n)}
+                            style={{padding:'6px 14px',borderRadius:'100px',border:'none',background:shortsCount===n?'#D946EF':'rgba(255,255,255,.05)',color:shortsCount===n?'#fff':'rgba(255,255,255,.4)',boxShadow:shortsCount===n?'0 0 14px rgba(217,70,239,.45)':'none',fontSize:'12px',fontWeight:700,cursor:'pointer',transition:'all .2s',fontFamily:'Inter,sans-serif'}}>
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'7px'}}>Durată clipuri</label>
+                      <div style={{display:'flex',gap:'6px'}}>
+                        {(['30-60','15-30'] as const).map(d=>(
+                          <button key={d} type="button" onClick={()=>setShortsMinDur(d)}
+                            style={{padding:'6px 14px',borderRadius:'100px',border:'none',background:shortsMinDur===d?'#D946EF':'rgba(255,255,255,.05)',color:shortsMinDur===d?'#fff':'rgba(255,255,255,.4)',boxShadow:shortsMinDur===d?'0 0 14px rgba(217,70,239,.45)':'none',fontSize:'12px',fontWeight:700,cursor:'pointer',transition:'all .2s',fontFamily:'Inter,sans-serif'}}>
+                            ⏱ {d} sec
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{display:'block',fontSize:'10px',fontWeight:600,letterSpacing:'.09em',textTransform:'uppercase',color:'var(--text3)',marginBottom:'7px'}}>Mod descărcare</label>
+                      <div style={{display:'flex',gap:'6px'}}>
+                        <button type="button" onClick={()=>setClipMode('auto')}
+                          style={{padding:'6px 14px',borderRadius:'100px',border:'none',background:clipMode==='auto'?'#D946EF':'rgba(255,255,255,.05)',color:clipMode==='auto'?'#fff':'rgba(255,255,255,.4)',boxShadow:clipMode==='auto'?'0 0 14px rgba(217,70,239,.45)':'none',fontSize:'12px',fontWeight:700,cursor:'pointer',transition:'all .2s',fontFamily:'Inter,sans-serif'}}>
+                          ✂️ Auto (ffmpeg)
+                        </button>
+                        <button type="button" onClick={()=>setClipMode('manual')}
+                          style={{padding:'6px 14px',borderRadius:'100px',border:'none',background:clipMode==='manual'?'#D946EF':'rgba(255,255,255,.05)',color:clipMode==='manual'?'#fff':'rgba(255,255,255,.4)',boxShadow:clipMode==='manual'?'0 0 14px rgba(217,70,239,.45)':'none',fontSize:'12px',fontWeight:700,cursor:'pointer',transition:'all .2s',fontFamily:'Inter,sans-serif'}}>
+                          📋 Manual (timestamps)
+                        </button>
+                      </div>
+                    </div>
+
+                    <button type="button" onClick={generateShorts} disabled={shortsLoading}
+                      style={{width:'100%',padding:'13px',borderRadius:'100px',border:'none',background:'linear-gradient(135deg,#D946EF,#6366F1)',color:'#fff',fontSize:'14px',fontWeight:800,cursor:shortsLoading?'not-allowed':'pointer',fontFamily:'Inter,sans-serif',boxShadow:'0 0 24px rgba(217,70,239,.4)',opacity:shortsLoading?.7:1,display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
+                      {shortsLoading ? (
+                        <><div style={{width:'14px',height:'14px',border:'2px solid rgba(255,255,255,.3)',borderTop:'2px solid #fff',borderRadius:'50%',animation:'spin .7s linear infinite'}}/> Analizez cu Claude...</>
+                      ) : '✂️ Detectează momente virale'}
+                    </button>
+                  </div>
+
+                  {/* Eroare */}
+                  {shortsError && (
+                    <div style={{padding:'12px 16px',background:'rgba(239,68,68,.08)',border:'1px solid rgba(239,68,68,.2)',borderRadius:'12px',fontSize:'12px',color:'#FCA5A5'}}>
+                      ✕ {shortsError}
+                    </div>
+                  )}
+
+                  {/* Rezultate */}
+                  {shortsClips.length > 0 && (
+                    <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
+                      <div style={{fontSize:'10px',fontWeight:700,textTransform:'uppercase',letterSpacing:'.1em',color:'rgba(255,255,255,.3)',display:'flex',alignItems:'center',gap:'8px'}}>
+                        Momente detectate
+                        <span style={{background:'rgba(217,70,239,.15)',color:'#F0ABFC',padding:'1px 9px',borderRadius:'100px',fontSize:'9px'}}>{shortsClips.length} clipuri</span>
+                        <div style={{flex:1,height:'1px',background:'rgba(255,255,255,.06)'}}/>
+                      </div>
+
+                      {shortsClips.map((clip,i)=>(
+                        <div key={i} style={{background:'#101018',border:'1px solid rgba(217,70,239,.15)',borderRadius:'16px',overflow:'hidden',transition:'all .2s'}}>
+                          <div style={{padding:'14px 16px',display:'flex',flexDirection:'column',gap:'10px'}}>
+                            {/* Header clip */}
+                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                              <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                <span style={{background:'rgba(0,0,0,.4)',borderRadius:'7px',padding:'3px 9px',fontSize:'11px',fontWeight:700,color:'#fff',fontFamily:'monospace'}}>
+                                  {clip.startTime} → {clip.endTime}
+                                </span>
+                                <span style={{fontSize:'11px',color:'rgba(255,255,255,.4)'}}>
+                                  {clip.endSeconds - clip.startSeconds}s
+                                </span>
+                              </div>
+                              <div style={{display:'flex',alignItems:'center',gap:'4px',background:'rgba(0,0,0,.3)',borderRadius:'7px',padding:'3px 9px',fontSize:'11px',fontWeight:800,color:clip.viralScore>=90?'#6EE7B7':clip.viralScore>=80?'#FCD34D':'#FDA4AF'}}>
+                                🔥 {clip.viralScore}
+                              </div>
+                            </div>
+
+                            {/* Hook */}
+                            <p style={{fontSize:'13px',fontWeight:600,lineHeight:1.4,color:'#ECECF1'}}>"{clip.hook}"</p>
+
+                            {/* Tags */}
+                            <div style={{display:'flex',gap:'5px',flexWrap:'wrap'}}>
+                              {clip.tags?.map((tag: string, ti: number)=>(
+                                <span key={ti} style={{padding:'2px 8px',borderRadius:'5px',fontSize:'9px',fontWeight:700,textTransform:'uppercase',
+                                  background:ti===0?'rgba(52,211,153,.12)':'rgba(217,70,239,.1)',
+                                  color:ti===0?'#6EE7B7':'#F0ABFC'}}>
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+
+                            {clip.reason && (
+                              <p style={{fontSize:'11px',color:'rgba(255,255,255,.35)',fontStyle:'italic'}}>{clip.reason}</p>
+                            )}
+
+                            {/* Acțiuni */}
+                            <div style={{display:'flex',gap:'7px'}}>
+                              {clipMode === 'auto' ? (
+                                <button type="button" onClick={()=>downloadClip(clip,i)} disabled={downloadingClip===i}
+                                  style={{flex:1,padding:'9px',borderRadius:'9px',border:'none',background:'linear-gradient(135deg,#6366F1,#D946EF)',color:'#fff',fontSize:'12px',fontWeight:700,cursor:downloadingClip===i?'not-allowed':'pointer',fontFamily:'Inter,sans-serif',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',opacity:downloadingClip===i?.6:1}}>
+                                  {downloadingClip===i ? (
+                                    <><div style={{width:'11px',height:'11px',border:'2px solid rgba(255,255,255,.3)',borderTop:'2px solid #fff',borderRadius:'50%',animation:'spin .7s linear infinite'}}/> Tai clipul...</>
+                                  ) : '↓ Descarcă clip'}
+                                </button>
+                              ) : (
+                                <button type="button" onClick={()=>navigator.clipboard.writeText(`${clip.startTime} - ${clip.endTime} (${clip.startSeconds}s - ${clip.endSeconds}s)`)}
+                                  style={{flex:1,padding:'9px',borderRadius:'9px',border:'1px solid rgba(217,70,239,.3)',background:'rgba(217,70,239,.08)',color:'#F0ABFC',fontSize:'12px',fontWeight:700,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+                                  ⎘ Copiază timestamps
+                                </button>
+                              )}
+                              <button type="button" onClick={()=>navigator.clipboard.writeText(clip.hook)}
+                                style={{padding:'9px 14px',borderRadius:'9px',border:'1px solid rgba(255,255,255,.09)',background:'rgba(255,255,255,.04)',color:'rgba(255,255,255,.5)',fontSize:'12px',fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>
+                                ⎘ Hook
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             </div>
