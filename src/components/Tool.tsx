@@ -39,8 +39,8 @@ const MODES = [
   {key:'translate'as Mode,icon:'✦',label:'Traduce',badge:'FREE',bcolor:'var(--teal)',bbg:'var(--tealbg)',bbdr:'var(--tealbdr)'},
   {key:'trello'   as Mode,icon:'⬡',label:'Trello',badge:'PRO',bcolor:'var(--gold)',bbg:'var(--goldbg)',bbdr:'var(--goldbdr)'},
   {key:'download' as Mode,icon:'↓',label:'Download',badge:'PRO',bcolor:'var(--gold)',bbg:'var(--goldbg)',bbdr:'var(--goldbdr)'},
+  {key:'shorts'   as Mode,icon:'✂',label:'Shorts',   badge:'PRO',bcolor:'#D946EF',bbg:'rgba(217,70,239,.08)',bbdr:'rgba(217,70,239,.25)'},
   {key:'generate' as Mode,icon:'✦',label:'Script AI',badge:'PRO',bcolor:'#F0C444',bbg:'var(--goldbg)',bbdr:'var(--goldbdr)'},
-  {key:'shorts'   as Mode,icon:'✂️',label:'Shorts',   badge:'PRO',bcolor:'#D946EF',bbg:'rgba(217,70,239,.08)',bbdr:'rgba(217,70,239,.25)'},
   {key:'batch'    as Mode,icon:'⚡',label:'Batch',    badge:'PRO',bcolor:'#34D399',bbg:'rgba(52,211,153,.08)',bbdr:'rgba(52,211,153,.25)'},
 ]
 
@@ -505,11 +505,11 @@ export default function Tool({ session }: { session: any }) {
       <div style={{ position: 'relative', zIndex: 1, maxWidth: '680px', margin: '0 auto', padding: '24px 20px 100px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-        {/* Mode tabs — sliding pill, scroll fără bară urâtă */}
+        {/* Mode tabs — sliding pill, full width */}
         <div style={{ position: 'relative' }}>
-          <div ref={tabsRef} className="tabs-scroll" style={{ display: 'flex', gap: '4px', padding: '4px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '100px', overflowX: 'auto', position: 'relative', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <div ref={tabsRef} className="tabs-scroll" style={{ display: 'flex', gap: '2px', padding: '3px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: '100px', overflowX: 'auto', position: 'relative', scrollbarWidth: 'none', msOverflowStyle: 'none', width: '100%' }}>
           {/* Pill slider */}
-          <div style={{ position: 'absolute', top: '4px', bottom: '4px', left: pillStyle.left, width: pillStyle.width, background: '#7C3AED', borderRadius: '100px', transition: 'left .3s cubic-bezier(.4,0,.2,1), width .3s cubic-bezier(.4,0,.2,1)', boxShadow: '0 0 18px rgba(124,58,237,.45)', pointerEvents: 'none', zIndex: 0 }}/>
+          <div style={{ position: 'absolute', top: '3px', bottom: '3px', left: pillStyle.left, width: pillStyle.width, background: '#7C3AED', borderRadius: '100px', transition: 'left .3s cubic-bezier(.4,0,.2,1), width .3s cubic-bezier(.4,0,.2,1)', boxShadow: '0 0 18px rgba(124,58,237,.45)', pointerEvents: 'none', zIndex: 0 }}/>
           {MODES.map(m => {
             const active = mode === m.key
             const locked = m.badge === 'PRO' && !isPro
@@ -521,16 +521,15 @@ export default function Tool({ session }: { session: any }) {
                   updatePill(e.currentTarget)
                   setMode(m.key); reset(); setGenOutput('')
                 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 14px', borderRadius: '100px', cursor: 'pointer', outline: 'none', whiteSpace: 'nowrap', flexShrink: 0,
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', padding: '6px 4px', borderRadius: '100px', cursor: 'pointer', outline: 'none', whiteSpace: 'nowrap', flex: 1, minWidth: 0,
                   background: 'transparent',
                   border: 'none',
                   color: active ? '#fff' : 'rgba(255,255,255,.38)',
-                  opacity: locked ? .55 : 1, fontFamily: 'Inter,sans-serif', fontSize: '12px', fontWeight: 700,
+                  opacity: locked ? .55 : 1, fontFamily: 'Inter,sans-serif', fontSize: '11px', fontWeight: 700,
                   position: 'relative', zIndex: 1, transition: 'color .2s' }}>
                 {locked && <span style={{ fontSize: '9px' }}>🔒</span>}
-                <span>{m.icon}</span>
                 <span>{m.label}</span>
-                <span style={{ fontSize: '8px', fontWeight: 700, padding: '1px 5px', borderRadius: '3px',
+                <span style={{ fontSize: '8px', fontWeight: 700, padding: '1px 4px', borderRadius: '3px',
                   color: m.badge === 'PRO' ? '#F59E0B' : '#0CCFB0',
                   background: m.badge === 'PRO' ? 'rgba(245,158,11,.15)' : 'rgba(12,207,176,.15)' }}>{m.badge}</span>
               </button>
