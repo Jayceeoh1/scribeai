@@ -618,6 +618,13 @@ export default function Tool({ session }: { session: any }) {
                 </button>
               )
             })}
+            <div style={{ height:'1px', background:'rgba(255,255,255,.05)', margin:'8px 4px' }}/>
+            <button type="button" className="sb-btn"
+              onClick={() => window.location.href = '/thumbnail-generator'}>
+              <span className="sb-dot"/>
+              Thumbnails
+              <span className="sb-badge" style={{ background:'rgba(245,158,11,.08)', color:'#F59E0B' }}>PRO</span>
+            </button>
           </div>
 
           {/* User info jos */}
