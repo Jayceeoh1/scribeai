@@ -5,10 +5,54 @@ export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, provider = 'replicate' } = await req.json()
+    const { prompt, provider = 'replicate', faceImage } = await req.json()
     if (!prompt) return NextResponse.json({ error: 'Prompt lipsă' }, { status: 400 })
 
     console.log('Generate image provider:', provider)
+
+    // ── PULID — face reference (Flux PuLID pe Replicate) ──
+    if (provider === 'pulid') {
+      if (!process.env.REPLICATE_API_KEY) return NextResponse.json({ error: 'REPLICATE_API_KEY lipsă' }, { status: 500 })
+      if (!faceImage) return NextResponse.json({ error: 'Trebuie să încarci o poză cu fața ta pentru PuLID' }, { status: 400 })
+
+      // Trimitem poza ca data URI direct
+      const pulidRes = await fetch('https://api.replicate.com/v1/models/bytedance/pulid/predictions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.REPLICATE_API_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'wait',
+        },
+        body: JSON.stringify({
+          input: {
+            main_face_image: faceImage,
+            prompt: `${prompt}, YouTube thumbnail style, 16:9 aspect ratio, high contrast, professional photography`,
+            negative_prompt: 'bad quality, worst quality, blurry, low resolution, watermark, text, ugly, deformed',
+            width: 1280,
+            height: 720,
+            num_outputs: 1,
+            id_weight: 1.0,
+            start_step: 4,
+            num_inference_steps: 20,
+          }
+        })
+      })
+
+      if (!pulidRes.ok) {
+        const err = await pulidRes.text()
+        console.error('PuLID error:', err.slice(0, 300))
+        return NextResponse.json({ error: `PuLID error: ${err.slice(0, 200)}` }, { status: 500 })
+      }
+
+      const pulidData = await pulidRes.json()
+      console.log('PuLID response:', JSON.stringify(pulidData).slice(0, 300))
+
+      // Replicate returnează array de URL-uri
+      const imageUrl = Array.isArray(pulidData.output) ? pulidData.output[0] : pulidData.output
+      if (!imageUrl) return NextResponse.json({ error: 'PuLID nu a returnat imagine' }, { status: 500 })
+
+      return NextResponse.json({ imageUrl })
+    }
 
     // ── GROK IMAGINE ──
     if (provider === 'grok') {

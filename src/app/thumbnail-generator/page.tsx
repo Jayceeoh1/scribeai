@@ -47,10 +47,11 @@ export default function ThumbnailGenerator() {
   const [bgOverlay, setBgOverlay] = useState(true)
 
   // Inspiratie
-  const [imageProvider, setImageProvider] = useState<'replicate'|'grok'>('replicate')
+  const [imageProvider, setImageProvider] = useState<'replicate'|'grok'|'pulid'>('replicate')
   const [inspireImages, setInspireImages] = useState<string[]>([])
   const [analyzing, setAnalyzing] = useState(false)
   const [analysisResult, setAnalysisResult] = useState<any>(null)
+  const [faceImage, setFaceImage] = useState<string>('')  // pentru PuLID face reference
 
   // Results
   const [loading, setLoading] = useState(false)
@@ -138,7 +139,13 @@ export default function ThumbnailGenerator() {
         const res = await fetch('/api/generate-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: fullPrompt, width: 1280, height: 720, provider: imageProvider })
+          body: JSON.stringify({
+            prompt: fullPrompt,
+            width: 1280, height: 720,
+            provider: imageProvider,
+            // PuLID face reference — trimitem poza cu fața
+            faceImage: imageProvider === 'pulid' ? faceImage : undefined,
+          })
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Eroare generare')
@@ -270,23 +277,67 @@ export default function ThumbnailGenerator() {
                 {/* Provider selector */}
                 <div>
                   <label style={{ display:'block', fontSize:'10px', fontWeight:600, letterSpacing:'.09em', textTransform:'uppercase', color:'var(--text3)', marginBottom:'6px' }}>Provider imagine AI</label>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'6px' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'6px' }}>
                     <button type="button" onClick={()=>setImageProvider('replicate')} disabled={loading}
-                      style={{ padding:'9px', borderRadius:'8px', fontSize:'12px', fontWeight:700, cursor:'pointer', fontFamily:'Inter,sans-serif', border:'none',
+                      style={{ padding:'9px', borderRadius:'8px', fontSize:'11px', fontWeight:700, cursor:'pointer', fontFamily:'Inter,sans-serif', border:'none',
                         background:imageProvider==='replicate'?'linear-gradient(135deg,var(--violet2),var(--indigo))':'var(--surface)',
                         color:imageProvider==='replicate'?'white':'var(--text3)' }}>
                       ⚡ Flux 1.1 Pro
                     </button>
                     <button type="button" onClick={()=>setImageProvider('grok')} disabled={loading}
-                      style={{ padding:'9px', borderRadius:'8px', fontSize:'12px', fontWeight:700, cursor:'pointer', fontFamily:'Inter,sans-serif', border:'none',
+                      style={{ padding:'9px', borderRadius:'8px', fontSize:'11px', fontWeight:700, cursor:'pointer', fontFamily:'Inter,sans-serif', border:'none',
                         background:imageProvider==='grok'?'linear-gradient(135deg,#1DA1F2,#0d8fd9)':'var(--surface)',
                         color:imageProvider==='grok'?'white':'var(--text3)' }}>
-                      𝕏 Grok Imagine
+                      𝕏 Grok
+                    </button>
+                    <button type="button" onClick={()=>setImageProvider('pulid')} disabled={loading}
+                      style={{ padding:'9px', borderRadius:'8px', fontSize:'11px', fontWeight:700, cursor:'pointer', fontFamily:'Inter,sans-serif', border:'none',
+                        background:imageProvider==='pulid'?'linear-gradient(135deg,#D946EF,#7C3AED)':'var(--surface)',
+                        color:imageProvider==='pulid'?'white':'var(--text3)' }}>
+                      🧬 Fața mea
                     </button>
                   </div>
                   <p style={{ fontSize:'10px', color:'var(--text3)', marginTop:'4px' }}>
-                    {imageProvider==='replicate'?'Flux 1.1 Pro — calitate maximă (~$0.04/img)':'Grok Imagine — rapid și gratuit cu cheia xAI'}
+                    {imageProvider==='replicate' ? 'Flux 1.1 Pro — calitate maximă (~$0.04/img)' :
+                     imageProvider==='grok' ? 'Grok Imagine — rapid cu cheia xAI' :
+                     'PuLID — generează cu fața ta în thumbnail'}
                   </p>
+
+                  {/* Upload față pentru PuLID */}
+                  {imageProvider==='pulid' && (
+                    <div style={{ marginTop:'10px', padding:'12px', background:'rgba(217,70,239,.06)', border:'1px solid rgba(217,70,239,.2)', borderRadius:'10px' }}>
+                      <p style={{ fontSize:'10px', fontWeight:700, color:'#F0ABFC', marginBottom:'8px', textTransform:'uppercase', letterSpacing:'.07em' }}>
+                        🧬 Poza ta de referință
+                      </p>
+                      <p style={{ fontSize:'11px', color:'rgba(255,255,255,.4)', marginBottom:'10px', lineHeight:1.4 }}>
+                        Încarcă o poză clară cu fața ta — AI-ul va genera thumbnail-uri în care TU ești personajul principal.
+                      </p>
+                      {faceImage ? (
+                        <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+                          <img src={faceImage} alt="Fața ta" style={{ width:'52px', height:'52px', borderRadius:'50%', objectFit:'cover', border:'2px solid rgba(217,70,239,.4)' }}/>
+                          <div>
+                            <p style={{ fontSize:'11px', color:'#F0ABFC', fontWeight:600, marginBottom:'3px' }}>✓ Poză încărcată</p>
+                            <button type="button" onClick={()=>setFaceImage('')}
+                              style={{ fontSize:'10px', color:'rgba(255,255,255,.4)', background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:'Inter,sans-serif' }}>
+                              Schimbă poza
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <label style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'6px', padding:'10px', borderRadius:'8px',
+                          border:'1px dashed rgba(217,70,239,.35)', cursor:'pointer', fontSize:'12px', fontWeight:600, color:'rgba(217,70,239,.8)' }}>
+                          📸 Încarcă poza cu fața ta
+                          <input type="file" accept="image/*" style={{ display:'none' }} onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            const reader = new FileReader()
+                            reader.onload = () => setFaceImage(reader.result as string)
+                            reader.readAsDataURL(file)
+                          }}/>
+                        </label>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <button onClick={generateThumbnails} disabled={loading||(!prompt&&!hookText)||!canGenerate}
