@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       if (!faceImage) return NextResponse.json({ error: 'Trebuie să încarci o poză cu fața ta pentru PuLID' }, { status: 400 })
 
       // Trimitem poza ca data URI direct
-      const pulidRes = await fetch('https://api.replicate.com/v1/models/bytedance/flux-pulid/predictions', {
+      const pulidRes = await fetch('https://api.replicate.com/v1/predictions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.REPLICATE_API_KEY}`,
@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
           'Prefer': 'wait',
         },
         body: JSON.stringify({
+          version: '8baa7ef2255075b46f4d91cd238c21d31181b3e6a864463f967960bb0112525b',
           input: {
             main_face_image: faceImage,
             prompt: `${prompt}, YouTube thumbnail style, 16:9 aspect ratio, high contrast, professional photography`,
@@ -44,10 +45,29 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `PuLID error: ${err.slice(0, 200)}` }, { status: 500 })
       }
 
-      const pulidData = await pulidRes.json()
-      console.log('PuLID response:', JSON.stringify(pulidData).slice(0, 300))
+      let pulidData = await pulidRes.json()
+      console.log('PuLID initial response status:', pulidData.status)
 
-      // Replicate returnează array de URL-uri
+      // Polling dacă Replicate nu a terminat imediat
+      if (pulidData.status === 'processing' || pulidData.status === 'starting') {
+        const pollUrl = pulidData.urls?.get
+        if (pollUrl) {
+          for (let attempt = 0; attempt < 30; attempt++) {
+            await new Promise(r => setTimeout(r, 2000))
+            const pollRes = await fetch(pollUrl, {
+              headers: { 'Authorization': `Bearer ${process.env.REPLICATE_API_KEY}` }
+            })
+            pulidData = await pollRes.json()
+            console.log(`PuLID poll ${attempt + 1}: ${pulidData.status}`)
+            if (pulidData.status === 'succeeded' || pulidData.status === 'failed') break
+          }
+        }
+      }
+
+      if (pulidData.status === 'failed') {
+        return NextResponse.json({ error: `PuLID failed: ${pulidData.error || 'unknown error'}` }, { status: 500 })
+      }
+
       const imageUrl = Array.isArray(pulidData.output) ? pulidData.output[0] : pulidData.output
       if (!imageUrl) return NextResponse.json({ error: 'PuLID nu a returnat imagine' }, { status: 500 })
 
